@@ -9,7 +9,7 @@ import { toast } from 'vue-sonner'
 
 const router = useRouter()
 
-const form = ref({ bank: '', phone: '', ci: '' })
+const form = ref({ name: 'Pago móvil', bank: '', holder_name: '', phone: '', ci: '' })
 
 onMounted(async () => {
   const { data, error } = await supabase.from('payment_settings').select('*').limit(1).single()
@@ -18,7 +18,13 @@ onMounted(async () => {
     console.error('loadPaymentSettings', error)
     toast.error('No se pudo cargar la configuración')
   } else if (data)
-    form.value = { bank: data.bank || '', phone: data.phone || '', ci: data.ci || '' }
+    form.value = {
+      name: data.name || 'Pago móvil',
+      bank: data.bank || '',
+      holder_name: data.holder_name || '',
+      phone: data.phone || '',
+      ci: data.ci || '',
+    }
 })
 
 async function handleSave() {
@@ -32,7 +38,13 @@ async function handleSave() {
     if (existing && existing.id) {
       const { error } = await supabase
         .from('payment_settings')
-        .update({ bank: form.value.bank, phone: form.value.phone, ci: form.value.ci })
+        .update({
+          name: form.value.name,
+          bank: form.value.bank,
+          holder_name: form.value.holder_name,
+          phone: form.value.phone,
+          ci: form.value.ci,
+        })
         .eq('id', existing.id)
       if (error) {
         console.error('savePaymentSettings', error)
@@ -42,7 +54,13 @@ async function handleSave() {
     } else {
       const { error } = await supabase
         .from('payment_settings')
-        .insert([{ bank: form.value.bank, phone: form.value.phone, ci: form.value.ci }])
+        .insert([{
+          name: form.value.name,
+          bank: form.value.bank,
+          holder_name: form.value.holder_name,
+          phone: form.value.phone,
+          ci: form.value.ci,
+        }])
       if (error) {
         console.error('createPaymentSettings', error)
         toast.error('No se pudo crear la configuración')
@@ -77,8 +95,16 @@ async function handleSave() {
 
     <form class="mt-8 space-y-5" @submit.prevent="handleSave">
       <div>
+        <label class="mb-1.5 block text-xs font-medium text-neutral-600">Nombre de la cuenta</label>
+        <Input v-model="form.name" type="text" placeholder="Ej: Pago móvil" />
+      </div>
+      <div>
         <label class="mb-1.5 block text-xs font-medium text-neutral-600">Banco</label>
         <Input v-model="form.bank" type="text" placeholder="Ej: Mercantil Banco" />
+      </div>
+      <div>
+        <label class="mb-1.5 block text-xs font-medium text-neutral-600">Titular</label>
+        <Input v-model="form.holder_name" type="text" placeholder="Nombre del titular" />
       </div>
       <div>
         <label class="mb-1.5 block text-xs font-medium text-neutral-600">Teléfono</label>

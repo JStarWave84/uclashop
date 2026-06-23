@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'vue-sonner'
 import {
   Dialog,
-  DialogContent,
+  DialogScrollContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
@@ -30,12 +30,14 @@ const form = ref({
   stock: 0,
   allow_backorder: false,
   is_active: true,
+  payment_account_ids: [],
 })
 
 const imageInput = ref(null)
 const imageFile = ref(null)
 const imagePreview = ref(null)
 const dragOver = ref(false)
+const paymentAccounts = ref([])
 
 function productImageUrl(path) {
   if (!path) return null
@@ -59,7 +61,25 @@ async function fetchProducts() {
   }
 }
 
-onMounted(fetchProducts)
+onMounted(async () => {
+  await fetchProducts()
+  await fetchPaymentAccounts()
+})
+
+async function fetchPaymentAccounts() {
+  const { data } = await supabase
+    .from('payment_accounts')
+    .select('*')
+    .eq('is_active', true)
+    .order('name')
+  if (data) paymentAccounts.value = data
+}
+
+function togglePaymentAccount(id) {
+  const idx = form.value.payment_account_ids.indexOf(id)
+  if (idx >= 0) form.value.payment_account_ids.splice(idx, 1)
+  else form.value.payment_account_ids.push(id)
+}
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -92,14 +112,23 @@ function openNewDialog() {
     stock: 0,
     allow_backorder: false,
     is_active: true,
+    payment_account_ids: [],
   }
   imageFile.value = null
   imagePreview.value = null
   dialogOpen.value = true
 }
 
-function openEditDialog(product) {
+async function openEditDialog(product) {
   editingProduct.value = product
+
+  // load linked payment accounts
+  const { data: ppa } = await supabase
+    .from('product_payment_accounts')
+    .select('payment_account_id')
+    .eq('product_id', product.id)
+  const linkedIds = (ppa || []).map((r) => r.payment_account_id)
+
   form.value = {
     name: product.name || '',
     description: product.description || '',
@@ -107,6 +136,7 @@ function openEditDialog(product) {
     stock: product.stock ?? 0,
     allow_backorder: product.allow_backorder ?? false,
     is_active: product.is_active ?? true,
+    payment_account_ids: linkedIds,
   }
   imageFile.value = null
   imagePreview.value = product.product_image_path
@@ -154,6 +184,19 @@ async function uploadImage(productId) {
   return path
 }
 
+async function syncPaymentAccounts(productId) {
+  await supabase.from('product_payment_accounts').delete().eq('product_id', productId)
+  if (form.value.payment_account_ids.length > 0) {
+    const inserts = form.value.payment_account_ids.map((paid, i) => ({
+      product_id: productId,
+      payment_account_id: paid,
+      is_primary: i === 0,
+    }))
+    const { error } = await supabase.from('product_payment_accounts').insert(inserts)
+    if (error) console.error('syncPaymentAccounts', error)
+  }
+}
+
 async function handleSave() {
   if (!form.value.name.trim()) {
     toast.error('El nombre es requerido')
@@ -191,6 +234,7 @@ async function handleSave() {
         return
       }
       toast.success('Producto actualizado')
+      await syncPaymentAccounts(editingProduct.value.id)
     } else {
       const { data: inserted, error } = await supabase
         .from('products')
@@ -215,6 +259,7 @@ async function handleSave() {
         const path = await uploadImage(inserted.id)
         await supabase.from('products').update({ product_image_path: path }).eq('id', inserted.id)
       }
+      await syncPaymentAccounts(inserted.id)
       toast.success('Producto creado')
     }
     dialogOpen.value = false
@@ -350,7 +395,7 @@ async function handleSave() {
   </div>
 
   <Dialog v-model:open="dialogOpen">
-    <DialogContent class="sm:max-w-lg">
+    <DialogScrollContent class="sm:max-w-lg">
       <DialogHeader>
         <DialogTitle>{{ editingProduct ? 'Editar producto' : 'Nuevo producto' }}</DialogTitle>
         <DialogDescription>
@@ -470,6 +515,34 @@ async function handleSave() {
             Activo
           </label>
         </div>
+
+        <div class="grid gap-2">
+          <Label>Cuentas de pago</Label>
+          <div
+            v-if="paymentAccounts.length > 0"
+            class="max-h-40 space-y-1.5 overflow-y-auto rounded-lg border border-neutral-200 p-2"
+          >
+            <label
+              v-for="acct in paymentAccounts"
+              :key="acct.id"
+              class="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-neutral-50"
+              :class="{ 'bg-ucla-50': form.payment_account_ids.includes(acct.id) }"
+            >
+              <input
+                type="checkbox"
+                :checked="form.payment_account_ids.includes(acct.id)"
+                class="size-4 rounded border-neutral-300 text-ucla-600 focus:ring-ucla-500"
+                @change="togglePaymentAccount(acct.id)"
+              />
+              <span class="flex-1">{{ acct.name }}</span>
+              <span class="text-xs text-neutral-400">{{ acct.bank }}</span>
+            </label>
+          </div>
+          <p v-else class="text-sm text-neutral-400">
+            No hay cuentas de pago activas.
+            <router-link to="/admin/cuentas-pago" class="text-ucla-600 underline">Crear cuenta</router-link>
+          </p>
+        </div>
       </form>
 
       <DialogFooter>
@@ -477,6 +550,6 @@ async function handleSave() {
           {{ saving ? 'Guardando...' : editingProduct ? 'Guardar cambios' : 'Crear producto' }}
         </Button>
       </DialogFooter>
-    </DialogContent>
+    </DialogScrollContent>
   </Dialog>
 </template>

@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'vue-sonner'
 import {
   Dialog,
-  DialogContent,
+  DialogScrollContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
@@ -36,6 +36,14 @@ const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
   if (!q) return sessions.value
   return sessions.value.filter((s) => s.name.toLowerCase().includes(q))
+})
+
+const productSearch = ref('')
+
+const filteredProducts = computed(() => {
+  const q = productSearch.value.trim().toLowerCase()
+  if (!q) return products.value
+  return products.value.filter((p) => (p.name || '').toLowerCase().includes(q))
 })
 
 async function fetchSessions() {
@@ -270,7 +278,7 @@ async function handleSave() {
   </div>
 
   <Dialog v-model:open="dialogOpen">
-    <DialogContent class="sm:max-w-lg">
+    <DialogScrollContent class="sm:max-w-lg">
       <DialogHeader>
         <DialogTitle>{{ editingSession ? 'Editar jornada' : 'Nueva jornada' }}</DialogTitle>
         <DialogDescription>
@@ -310,24 +318,36 @@ async function handleSave() {
 
         <div>
           <p class="mb-2 text-sm font-medium text-neutral-700">Productos disponibles</p>
-          <div
-            class="max-h-48 space-y-1.5 overflow-y-auto rounded-lg border border-neutral-200 p-2"
-          >
-            <label
-              v-for="product in products"
-              :key="product.id"
-              class="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-neutral-50"
-              :class="{ 'bg-ucla-50': form.product_ids.includes(product.id) }"
-            >
-              <input
-                type="checkbox"
-                :checked="form.product_ids.includes(product.id)"
-                class="size-4 rounded border-neutral-300 text-ucla-600 focus:ring-ucla-500"
-                @change="toggleProduct(product.id)"
+          <div class="rounded-lg border border-neutral-200">
+            <div class="relative border-b border-neutral-200">
+              <Search class="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-neutral-400" />
+              <Input
+                v-model="productSearch"
+                type="search"
+                placeholder="Buscar productos..."
+                class="border-0 pl-8 text-sm shadow-none"
               />
-              <span class="flex-1">{{ product.name }}</span>
-              <PriceDisplay :price="product.price" class="text-xs text-neutral-400" />
-            </label>
+            </div>
+            <div class="max-h-48 space-y-1.5 overflow-y-auto p-2">
+              <label
+                v-for="product in filteredProducts"
+                :key="product.id"
+                class="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-neutral-50"
+                :class="{ 'bg-ucla-50': form.product_ids.includes(product.id) }"
+              >
+                <input
+                  type="checkbox"
+                  :checked="form.product_ids.includes(product.id)"
+                  class="size-4 rounded border-neutral-300 text-ucla-600 focus:ring-ucla-500"
+                  @change="toggleProduct(product.id)"
+                />
+                <span class="flex-1">{{ product.name }}</span>
+                <PriceDisplay :price="product.price" class="text-xs text-neutral-400" />
+              </label>
+              <p v-if="filteredProducts.length === 0" class="py-4 text-center text-xs text-neutral-400">
+                No se encontraron productos
+              </p>
+            </div>
           </div>
         </div>
       </form>
@@ -337,6 +357,6 @@ async function handleSave() {
           {{ saving ? 'Guardando...' : editingSession ? 'Guardar cambios' : 'Crear jornada' }}
         </Button>
       </DialogFooter>
-    </DialogContent>
+    </DialogScrollContent>
   </Dialog>
 </template>

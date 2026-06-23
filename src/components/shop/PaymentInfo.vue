@@ -45,7 +45,7 @@ const vesTotal = computed(() => {
       </div>
       <div class="flex items-center justify-between">
         <dt class="text-sm text-ucla-900/50">Titular</dt>
-        <dd class="text-sm font-medium text-ucla-900">{{ account.holder }}</dd>
+        <dd class="text-sm font-medium text-ucla-900">{{ account.holder || '—' }}</dd>
       </div>
       <div class="flex items-center justify-between">
         <dt class="text-sm text-ucla-900/50">Teléfono</dt>
@@ -80,9 +80,7 @@ const vesTotal = computed(() => {
             {{ formatPrice(total) }}
           </dd>
         </div>
-        <p v-if="vesTotal" class="mt-0.5 text-right text-xs text-ucla-900/40">
-          {{ vesTotal }}
-        </p>
+        <p v-if="vesTotal" class="mt-0.5 text-right text-md text-ucla-900/80">≈ {{ vesTotal }}</p>
       </div>
     </dl>
 

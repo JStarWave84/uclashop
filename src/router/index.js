@@ -71,13 +71,11 @@ const routes = [
       },
       {
         path: 'cuentas-pago/nueva',
-        name: 'admin-payment-account-new',
-        component: () => import('@/views/dashboard/PaymentAccountForm.vue'),
+        redirect: '/admin/cuentas-pago',
       },
       {
         path: 'cuentas-pago/:id/editar',
-        name: 'admin-payment-account-edit',
-        component: () => import('@/views/dashboard/PaymentAccountForm.vue'),
+        redirect: '/admin/cuentas-pago',
       },
       {
         path: 'configuracion-pago',

@@ -18,12 +18,40 @@ const { rate: exchangeRate, loading: rateLoading } = useExchangeRate()
 const paymentAccounts = ref([])
 
 onMounted(async () => {
-  const { data } = await supabase
-    .from('payment_accounts')
+  if (cart.items.length === 0) return
+
+  const productIds = cart.items.map((i) => i.id)
+  const { data: linked } = await supabase
+    .from('product_payment_accounts')
+    .select('payment_account_id, payment_accounts(*)')
+    .in('product_id', productIds)
+  if (linked && linked.length > 0) {
+    const seen = new Set()
+    paymentAccounts.value = linked
+      .filter((r) => {
+        if (seen.has(r.payment_account_id)) return false
+        seen.add(r.payment_account_id)
+        return true
+      })
+      .map((r) => r.payment_accounts)
+    return
+  }
+
+  const { data: settings } = await supabase
+    .from('payment_settings')
     .select('*')
-    .eq('is_active', true)
-    .order('created_at')
-  if (data) paymentAccounts.value = data
+    .limit(1)
+    .single()
+  if (settings && (settings.bank || settings.phone)) {
+    paymentAccounts.value = [{
+      id: 'global',
+      name: settings.name || 'Pago móvil',
+      bank: settings.bank,
+      holder_name: settings.holder_name,
+      phone: settings.phone,
+      ci: settings.ci,
+    }]
+  }
 })
 
 async function placeOrder(data) {
@@ -126,7 +154,7 @@ async function placeOrder(data) {
     <div v-if="cart.items.length === 0" class="mt-12 text-center">
       <ShoppingCart class="mx-auto size-10 text-ucla-900/20" />
       <p class="mt-3 text-sm text-ucla-900/40">No hay productos en el carrito</p>
-      <Button variant="outline" class="mt-4" as="router-link" to="/productos">
+      <Button variant="outline" class="mt-4" @click="router.push('/productos')">
         Explorar productos
       </Button>
     </div>
