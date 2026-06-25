@@ -15,31 +15,28 @@ const orderData = ref(null)
 
 onMounted(async () => {
   if (!orderId) return
-  const { data, error } = await supabase.from('orders').select('*').eq('id', orderId).single()
-  if (error) {
+  const { data, error } = await supabase.rpc('get_order_for_confirmation', {
+    p_order_id: orderId,
+  })
+  if (error || !data) {
     console.error('loadOrderConfirmation', error)
     toast.error('No se pudo cargar la orden')
     return
   }
-  const { data: items, error: oiErr } = await supabase
-    .from('order_items')
-    .select('*')
-    .eq('order_id', orderId)
-  if (oiErr) {
-    console.error('loadOrderItems', oiErr)
-  }
+  const order = data.order
+  const items = data.items || []
   orderData.value = {
-    id: data.id,
-    total: data.total,
-    payment: { reference: data.payment_reference, receipt_url: data.payment_receipt_url },
+    id: order.id,
+    total: order.total,
+    payment: { reference: order.payment_reference, receipt_url: order.payment_receipt_url },
     customer: {
-      first_name: data.customer_first_name,
-      last_name: data.customer_last_name,
-      ci: data.customer_ci,
-      phone: data.customer_phone,
-      email: data.customer_email,
+      first_name: order.customer_first_name,
+      last_name: order.customer_last_name,
+      ci: order.customer_ci,
+      phone: order.customer_phone,
+      email: order.customer_email,
     },
-    items: (items || []).map((i) => ({
+    items: items.map((i) => ({
       name: i.product_name_snapshot,
       price: Number(i.price_snapshot),
       quantity: i.quantity,

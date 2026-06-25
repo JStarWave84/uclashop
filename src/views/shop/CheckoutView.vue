@@ -55,7 +55,6 @@ onMounted(async () => {
 })
 
 async function placeOrder(data) {
-  // Create order + order_items in DB, upload receipt if provided
   const items = cart.items.map((i) => ({
     product_id: i.id,
     quantity: i.quantity,
@@ -65,63 +64,32 @@ async function placeOrder(data) {
   const total = cart.totalPrice
 
   try {
-    // insert order (anonymous allowed by RLS for INSERT)
-    const { data: orderData, error: orderErr } = await supabase
-      .from('orders')
-      .insert([
-        {
-          total,
-          customer_first_name: data.first_name,
-          customer_last_name: data.last_name,
-          customer_ci: data.ci,
-          customer_phone: data.phone,
-          customer_email: data.email,
-          payment_reference: data.payment_reference || null,
-        },
-      ])
-      .select('id')
-      .single()
+    const { data: result, error: rpcErr } = await supabase.rpc('place_order', {
+      p_total: total,
+      p_first_name: data.first_name,
+      p_last_name: data.last_name,
+      p_ci: data.ci,
+      p_phone: data.phone,
+      p_email: data.email,
+      p_payment_reference: data.payment_reference || null,
+      p_items: items,
+    })
 
-    if (orderErr) {
-      console.error('createOrder', orderErr)
+    if (rpcErr) {
+      console.error('placeOrder', rpcErr)
       toast.error('No se pudo crear la orden')
       return
     }
 
-    const orderId = orderData.id
-
-    // insert order_items
-    const itemsToInsert = items.map((it) => ({
-      order_id: orderId,
-      product_id: it.product_id,
-      product_name_snapshot: it.product_name_snapshot,
-      price_snapshot: it.price_snapshot,
-      quantity: it.quantity,
-    }))
-    const { error: oiErr } = await supabase.from('order_items').insert(itemsToInsert)
-    if (oiErr) {
-      console.error('insertOrderItems', oiErr)
-      toast.error('No se pudo crear los items de la orden')
-      return
-    }
+    const orderId = result.id
 
     if (data.receipt_file) {
-      try {
-        const file = data.receipt_file
-        const ext = file.name.split('.').pop()
-        const path = `${orderId}/${Date.now()}.${ext}`
-        const { error: uploadErr } = await supabase.storage
-          .from('receipts')
-          .upload(path, file, { upsert: true })
-        if (uploadErr) {
-          console.error('uploadReceipt', uploadErr)
-          toast.error('La orden se creó, pero no se pudo subir el comprobante')
-        } else {
-          await supabase.from('orders').update({ payment_receipt_url: path }).eq('id', orderId)
-        }
-      } catch (e) {
-        console.error('receipt handling', e)
-      }
+      const file = data.receipt_file
+      const ext = file.name.split('.').pop()
+      const path = `${orderId}/${Date.now()}.${ext}`
+      await supabase.storage.from('receipts').upload(path, file, { upsert: true }).catch(() => {
+        toast.error('La orden se creó, pero no se pudo subir el comprobante')
+      })
     }
 
     toast.success('Orden creada correctamente')
