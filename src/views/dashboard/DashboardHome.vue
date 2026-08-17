@@ -168,7 +168,7 @@ const statCards = computed(() => [
             variant="outline"
             class="w-full justify-start"
             as="router-link"
-            to="/admin/productos/nuevo"
+            to="/admin/productos?nuevo=1"
           >
             <Plus class="size-4" />
             Nuevo producto
