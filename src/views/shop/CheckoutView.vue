@@ -34,23 +34,6 @@ onMounted(async () => {
         return true
       })
       .map((r) => r.payment_accounts)
-    return
-  }
-
-  const { data: settings } = await supabase
-    .from('payment_settings')
-    .select('*')
-    .limit(1)
-    .single()
-  if (settings && (settings.bank || settings.phone)) {
-    paymentAccounts.value = [{
-      id: 'global',
-      name: settings.name || 'Pago móvil',
-      bank: settings.bank,
-      holder_name: settings.holder_name,
-      phone: settings.phone,
-      ci: settings.ci,
-    }]
   }
 })
 

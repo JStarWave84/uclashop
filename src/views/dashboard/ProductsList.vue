@@ -30,6 +30,7 @@ const form = ref({
   stock: 0,
   allow_backorder: false,
   is_active: true,
+  contact_phone: '',
   payment_account_ids: [],
 })
 
@@ -112,6 +113,7 @@ function openNewDialog() {
     stock: 0,
     allow_backorder: false,
     is_active: true,
+    contact_phone: '',
     payment_account_ids: [],
   }
   imageFile.value = null
@@ -136,6 +138,7 @@ async function openEditDialog(product) {
     stock: product.stock ?? 0,
     allow_backorder: product.allow_backorder ?? false,
     is_active: product.is_active ?? true,
+    contact_phone: product.contact_phone || '',
     payment_account_ids: linkedIds,
   }
   imageFile.value = null
@@ -212,6 +215,7 @@ async function handleSave() {
         stock: form.value.stock,
         allow_backorder: form.value.allow_backorder,
         is_active: form.value.is_active,
+        contact_phone: form.value.contact_phone || null,
       }
       if (imageFile.value) {
         const path = await uploadImage(editingProduct.value.id)
@@ -246,6 +250,7 @@ async function handleSave() {
             stock: form.value.stock,
             allow_backorder: form.value.allow_backorder,
             is_active: form.value.is_active,
+            contact_phone: form.value.contact_phone || null,
           },
         ])
         .select('id')
@@ -312,6 +317,7 @@ async function handleSave() {
             <th class="px-4 py-3 font-medium text-neutral-500">Nombre</th>
             <th class="px-4 py-3 font-medium text-neutral-500">Precio</th>
             <th class="px-4 py-3 font-medium text-neutral-500">Stock</th>
+            <th class="px-4 py-3 font-medium text-neutral-500">Contacto</th>
             <th class="px-4 py-3 font-medium text-neutral-500">Estado</th>
             <th class="px-4 py-3 font-medium text-neutral-500">Acciones</th>
           </tr>
@@ -354,6 +360,10 @@ async function handleSave() {
               >
                 {{ product.stock }}
               </span>
+            </td>
+            <td class="px-4 py-3 text-neutral-600 tabular-nums">
+              <span v-if="product.contact_phone">{{ product.contact_phone }}</span>
+              <span v-else class="text-neutral-300">—</span>
             </td>
             <td class="px-4 py-3">
               <span
@@ -495,6 +505,19 @@ async function handleSave() {
             <Label for="prod-stock">Stock</Label>
             <Input id="prod-stock" v-model="form.stock" type="number" min="0" placeholder="0" />
           </div>
+        </div>
+
+        <div class="grid gap-2">
+          <Label for="prod-contact">Número de contacto (WhatsApp)</Label>
+          <Input
+            id="prod-contact"
+            v-model="form.contact_phone"
+            type="tel"
+            placeholder="0412-1234567"
+          />
+          <p class="text-xs text-neutral-400">
+            Los pedidos de este producto se envían por WhatsApp a este número.
+          </p>
         </div>
 
         <div class="flex items-center gap-4">

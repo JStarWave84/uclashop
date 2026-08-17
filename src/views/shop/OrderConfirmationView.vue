@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Check, ArrowLeft, MessageCircle, Copy } from '@lucide/vue'
 import { formatPrice } from '@/lib/utils'
 import { supabase } from '@/lib/supabaseClient'
+import { resolveContactPhone, buildWhatsAppUrl } from '@/lib/whatsapp'
 import { toast } from 'vue-sonner'
 
 const route = useRoute()
@@ -40,6 +41,7 @@ onMounted(async () => {
       name: i.product_name_snapshot,
       price: Number(i.price_snapshot),
       quantity: i.quantity,
+      contact_phone: i.contact_phone || null,
     })),
   }
 })
@@ -57,12 +59,10 @@ const itemsList = computed(() => {
     .join('\n')
 })
 
-const waPhone = '584262617824'
-
 const waMessage = computed(() => {
   if (!orderData.value) return ''
   const lines = [
-    `*Nuevo pedido* #${orderId}`,
+    `¡Hola! 😊 Este es mi pedido #${orderId}:`,
     '',
     `*Cliente:* ${customerName.value}`,
     `*Teléfono:* ${orderData.value.customer.phone}`,
@@ -83,7 +83,11 @@ const waMessage = computed(() => {
   return lines.filter(Boolean).join('\n')
 })
 
-const waUrl = computed(() => `https://wa.me/${waPhone}?text=${encodeURIComponent(waMessage.value)}`)
+const waPhone = computed(() => resolveContactPhone(orderData.value?.items || []))
+
+const waUrl = computed(() =>
+  orderData.value ? buildWhatsAppUrl(waPhone.value, waMessage.value) : ''
+)
 
 function copyMessage() {
   navigator.clipboard?.writeText(waMessage.value).catch(() => {})

@@ -77,11 +77,6 @@ const routes = [
         path: 'cuentas-pago/:id/editar',
         redirect: '/admin/cuentas-pago',
       },
-      {
-        path: 'configuracion-pago',
-        name: 'admin-payment-settings',
-        component: () => import('@/views/dashboard/PaymentSettingsView.vue'),
-      },
     ],
   },
 
@@ -142,6 +137,20 @@ router.beforeEach(async (to, from, next) => {
 
   if (auth.loading) {
     await auth.fetchSession()
+  }
+
+  if (to.name === 'checkout') {
+    const { supabase } = await import('@/lib/supabaseClient')
+    const { data } = await supabase
+      .from('sales_sessions')
+      .select('id')
+      .eq('is_open', true)
+      .limit(1)
+      .maybeSingle()
+    if (!data) {
+      next({ name: 'home' })
+      return
+    }
   }
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {

@@ -1,25 +1,35 @@
 <script setup>
+import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { ShoppingCart } from '@lucide/vue'
+import { ShoppingCart, MessageCircle, ArrowRight } from '@lucide/vue'
 import { useCartStore } from '@/stores/cart'
 import { formatPrice } from '@/lib/utils'
-import { useRouter } from 'vue-router'
-import { ref } from 'vue'
+import { resolveContactPhone, buildCartMessage, buildWhatsAppUrl } from '@/lib/whatsapp'
 import CartItemRow from './CartItemRow.vue'
 
 const cart = useCartStore()
 const router = useRouter()
-const open = ref(false)
+
+onMounted(() => {
+  cart.loadJornadaProducts()
+})
 
 function goTo(path) {
-  open.value = false
+  cart.closeDrawer()
   setTimeout(() => router.push(path), 300)
+}
+
+async function buyOnWhatsApp() {
+  const phone = resolveContactPhone(cart.items)
+  const message = buildCartMessage(cart.items, cart.totalPrice)
+  window.open(buildWhatsAppUrl(phone, message), '_blank', 'noopener,noreferrer')
 }
 </script>
 
 <template>
-  <Sheet v-model:open="open">
+  <Sheet :open="cart.drawerOpen" @update:open="(v) => (cart.drawerOpen = v)">
     <SheetTrigger as-child>
       <button
         class="relative flex size-9 items-center justify-center rounded-lg text-ucla-700/70 transition-colors hover:bg-ucla-50 hover:text-ucla-600"
@@ -64,7 +74,14 @@ function goTo(path) {
             {{ formatPrice(cart.totalPrice) }}
           </span>
         </div>
-        <Button @click="goTo('/checkout')" class="mt-4 w-full"> Proceder al pago </Button>
+        <Button v-if="cart.isJornadaCart" @click="goTo('/checkout')" class="mt-4 w-full">
+          Proceder al pago
+          <ArrowRight class="size-4" />
+        </Button>
+        <Button v-else @click="buyOnWhatsApp" class="mt-4 w-full">
+          <MessageCircle class="size-4" />
+          Comprar por WhatsApp
+        </Button>
       </div>
     </SheetContent>
   </Sheet>

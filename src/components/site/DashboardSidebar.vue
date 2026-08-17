@@ -8,9 +8,7 @@ import {
   Receipt,
   Truck,
   CreditCard,
-  Settings,
   ChevronLeft,
-  Menu,
 } from '@lucide/vue'
 
 const route = useRoute()
@@ -23,7 +21,6 @@ const links = [
   { to: '/admin/ordenes', icon: Receipt, label: 'Órdenes' },
   { to: '/admin/entregas', icon: Truck, label: 'Entregas' },
   { to: '/admin/cuentas-pago', icon: CreditCard, label: 'Cuentas de pago' },
-  { to: '/admin/configuracion-pago', icon: Settings, label: 'Config. pago' },
 ]
 
 function isActive(link) {

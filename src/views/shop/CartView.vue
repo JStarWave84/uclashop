@@ -1,16 +1,28 @@
 <script setup>
+import { onMounted } from 'vue'
 import { Button } from '@/components/ui/button'
 import { useCartStore } from '@/stores/cart'
-import { ShoppingCart, ArrowRight } from '@lucide/vue'
+import { ShoppingCart, MessageCircle, ArrowRight } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import CartItemRow from '@/components/shop/CartItemRow.vue'
 import OrderSummary from '@/components/shop/OrderSummary.vue'
+import { resolveContactPhone, buildCartMessage, buildWhatsAppUrl } from '@/lib/whatsapp'
 
 const cart = useCartStore()
 const router = useRouter()
 
+onMounted(() => {
+  cart.loadJornadaProducts()
+})
+
 function goTo(path) {
   router.push(path)
+}
+
+async function buyOnWhatsApp() {
+  const phone = resolveContactPhone(cart.items)
+  const message = buildCartMessage(cart.items, cart.totalPrice)
+  window.open(buildWhatsAppUrl(phone, message), '_blank', 'noopener,noreferrer')
 }
 </script>
 
@@ -41,9 +53,18 @@ function goTo(path) {
 
         <aside class="lg:col-span-2">
           <OrderSummary :items="cart.items" :total="cart.totalPrice" />
-          <Button @click="goTo('/checkout')" class="mt-4 w-full" size="lg">
+          <Button
+            v-if="cart.isJornadaCart"
+            @click="goTo('/checkout')"
+            class="mt-4 w-full"
+            size="lg"
+          >
             Proceder al pago
             <ArrowRight class="size-4" />
+          </Button>
+          <Button v-else @click="buyOnWhatsApp" class="mt-4 w-full" size="lg">
+            <MessageCircle class="size-4" />
+            Comprar por WhatsApp
           </Button>
         </aside>
       </div>
