@@ -1,4 +1,4 @@
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 
 const CACHE_KEY = 'ucla_exchange_rate'
 const CACHE_TTL = 6 * 60 * 60 * 1000

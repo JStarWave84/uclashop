@@ -6,7 +6,6 @@ import {
   Package,
   Calendar,
   Receipt,
-  Truck,
   CreditCard,
   ChevronLeft,
 } from '@lucide/vue'
@@ -19,7 +18,6 @@ const links = [
   { to: '/admin/productos', icon: Package, label: 'Productos' },
   { to: '/admin/jornadas', icon: Calendar, label: 'Jornadas' },
   { to: '/admin/ordenes', icon: Receipt, label: 'Órdenes' },
-  { to: '/admin/entregas', icon: Truck, label: 'Entregas' },
   { to: '/admin/cuentas-pago', icon: CreditCard, label: 'Cuentas de pago' },
 ]
 

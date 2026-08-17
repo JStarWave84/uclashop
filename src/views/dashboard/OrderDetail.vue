@@ -14,7 +14,6 @@ const router = useRouter()
 
 const order = ref(null)
 const items = ref([])
-const delivery = ref(null)
 const newStatus = ref('pending_payment')
 const receiptDialogOpen = ref(false)
 const receiptSignedUrl = ref('')
@@ -32,9 +31,6 @@ async function fetchOrder() {
 
   const { data: oi, error: e2 } = await supabase.from('order_items').select('*').eq('order_id', id)
   if (!e2) items.value = oi || []
-
-  const { data: d } = await supabase.from('deliveries').select('*').eq('order_id', id).maybeSingle()
-  if (d) delivery.value = d
 }
 
 onMounted(fetchOrder)
@@ -187,52 +183,28 @@ function copy(text) {
       </table>
     </div>
 
-    <div class="mt-6 grid gap-6 lg:grid-cols-2">
-      <div class="rounded-xl border border-neutral-200 bg-white p-5">
-        <h2 class="text-sm font-semibold text-neutral-900">Pago</h2>
-        <dl class="mt-3 space-y-2 text-sm">
-          <div class="flex justify-between">
-            <dt class="text-neutral-500">Referencia</dt>
-            <dd class="font-medium text-neutral-900">{{ order.payment_reference || '—' }}</dd>
-          </div>
-          <div class="flex justify-between">
-            <dt class="text-neutral-500">Comprobante</dt>
-            <dd>
-              <button
-                v-if="order.payment_receipt_url"
-                class="inline-flex items-center gap-1.5 font-medium text-ucla-600 hover:text-ucla-700 hover:underline"
-                @click="openReceipt"
-              >
-                <ImageIcon class="size-3.5" />
-                Ver comprobante
-              </button>
-              <span v-else class="text-neutral-400">Sin subir</span>
-            </dd>
-          </div>
-        </dl>
-      </div>
-
-      <div class="rounded-xl border border-neutral-200 bg-white p-5">
-        <h2 class="text-sm font-semibold text-neutral-900">Entrega</h2>
-        <dl v-if="delivery" class="mt-3 space-y-2 text-sm">
-          <div class="flex justify-between">
-            <dt class="text-neutral-500">Estado</dt>
-            <dd>
-              <span
-                class="rounded-full border px-2 py-0.5 text-[10px] font-medium"
-                :class="statusColors[delivery.status] || ''"
-              >
-                {{ statusLabels[delivery.status] || delivery.status }}
-              </span>
-            </dd>
-          </div>
-          <div class="flex justify-between">
-            <dt class="text-neutral-500">Notas</dt>
-            <dd class="text-right text-neutral-700">{{ delivery.notes || '—' }}</dd>
-          </div>
-        </dl>
-        <p v-else class="mt-3 text-sm text-neutral-400">Sin seguimiento de entrega</p>
-      </div>
+    <div class="mt-6 rounded-xl border border-neutral-200 bg-white p-5">
+      <h2 class="text-sm font-semibold text-neutral-900">Pago</h2>
+      <dl class="mt-3 space-y-2 text-sm">
+        <div class="flex justify-between">
+          <dt class="text-neutral-500">Referencia</dt>
+          <dd class="font-medium text-neutral-900">{{ order.payment_reference || '—' }}</dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-neutral-500">Comprobante</dt>
+          <dd>
+            <button
+              v-if="order.payment_receipt_url"
+              class="inline-flex items-center gap-1.5 font-medium text-ucla-600 hover:text-ucla-700 hover:underline"
+              @click="openReceipt"
+            >
+              <ImageIcon class="size-3.5" />
+              Ver comprobante
+            </button>
+            <span v-else class="text-neutral-400">Sin subir</span>
+          </dd>
+        </div>
+      </dl>
     </div>
   </div>
 

@@ -187,25 +187,6 @@ export const sessions = [
   },
 ]
 
-export const deliveries = [
-  {
-    id: 1,
-    order_id: 'ORD-003',
-    status: 'out_for_delivery',
-    notes: 'Entregar en horario de oficina de 8am a 4pm',
-    created_at: '2026-06-15T08:00:00Z',
-    delivered_at: null,
-  },
-  {
-    id: 2,
-    order_id: 'ORD-004',
-    status: 'delivered',
-    notes: 'Entregado al cliente en recepción',
-    created_at: '2026-06-14T10:00:00Z',
-    delivered_at: '2026-06-16T14:30:00Z',
-  },
-]
-
 export const paymentAccounts = [
   {
     id: 1,
@@ -259,8 +240,6 @@ export const statusColors = {
   in_delivery: 'text-blue-600 bg-blue-50 border-blue-200',
   delivered: 'text-emerald-600 bg-emerald-50 border-emerald-200',
   rejected: 'text-red-600 bg-red-50 border-red-200',
-  preparing: 'text-amber-600 bg-amber-50 border-amber-200',
-  out_for_delivery: 'text-blue-600 bg-blue-50 border-blue-200',
 }
 
 export const orderStats = {

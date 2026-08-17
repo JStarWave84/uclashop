@@ -60,11 +60,6 @@ const routes = [
         component: () => import('@/views/dashboard/OrderDetail.vue'),
       },
       {
-        path: 'entregas',
-        name: 'admin-deliveries',
-        component: () => import('@/views/dashboard/DeliveriesList.vue'),
-      },
-      {
         path: 'cuentas-pago',
         name: 'admin-payment-accounts',
         component: () => import('@/views/dashboard/PaymentAccountsList.vue'),
