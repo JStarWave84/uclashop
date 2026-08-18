@@ -1,12 +1,12 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
 import { Button } from '@/components/ui/button'
 import { useCartStore } from '@/stores/cart'
-import { ShoppingCart, MessageCircle, ArrowRight } from '@lucide/vue'
+import { ShoppingCart, MessageCircle, ArrowRight, Store } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import CartItemRow from '@/components/shop/CartItemRow.vue'
 import OrderSummary from '@/components/shop/OrderSummary.vue'
-import { resolveContactPhone, buildCartMessage, buildWhatsAppUrl } from '@/lib/whatsapp'
+import { groupCartByStore, buildCartMessage, buildWhatsAppUrl } from '@/lib/whatsapp'
 
 const cart = useCartStore()
 const router = useRouter()
@@ -19,9 +19,10 @@ function goTo(path) {
   router.push(path)
 }
 
-async function buyOnWhatsApp() {
-  const phone = resolveContactPhone(cart.items)
-  const message = buildCartMessage(cart.items, cart.totalPrice)
+const storeGroups = computed(() => groupCartByStore(cart.items))
+
+function buyOnWhatsApp(phone, items, total) {
+  const message = buildCartMessage(items, total)
   window.open(buildWhatsAppUrl(phone, message), '_blank', 'noopener,noreferrer')
 }
 </script>
@@ -53,6 +54,7 @@ async function buyOnWhatsApp() {
 
         <aside class="lg:col-span-2">
           <OrderSummary :items="cart.items" :total="cart.totalPrice" />
+
           <Button
             v-if="cart.isJornadaCart"
             @click="goTo('/checkout')"
@@ -62,10 +64,40 @@ async function buyOnWhatsApp() {
             Proceder al pago
             <ArrowRight class="size-4" />
           </Button>
-          <Button v-else @click="buyOnWhatsApp" class="mt-4 w-full" size="lg">
-            <MessageCircle class="size-4" />
-            Comprar por WhatsApp
-          </Button>
+
+          <template v-else>
+            <div
+              v-for="group in storeGroups"
+              :key="group.storeId"
+              class="mt-4 rounded-xl border border-ucla-100 bg-ucla-50/50 p-4"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <p class="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold text-ucla-900">
+                  <Store class="size-4 shrink-0 text-ucla-600" />
+                  <span class="truncate">{{ group.store.name }}</span>
+                </p>
+                <router-link
+                  v-if="group.store.slug"
+                  :to="`/tiendas/${group.store.slug}`"
+                  class="shrink-0 text-xs text-ucla-600 underline underline-offset-2 hover:text-ucla-700"
+                >
+                  Ver tienda
+                </router-link>
+              </div>
+              <p class="mt-1 text-xs text-ucla-900/50">
+                {{ group.items.length }}
+                {{ group.items.length === 1 ? 'producto' : 'productos' }} de esta tienda
+              </p>
+              <Button
+                class="mt-3 w-full"
+                size="lg"
+                @click="buyOnWhatsApp(group.phone, group.items, group.total)"
+              >
+                <MessageCircle class="size-4" />
+                Enviar pedido a {{ group.store.name }}
+              </Button>
+            </div>
+          </template>
         </aside>
       </div>
     </template>

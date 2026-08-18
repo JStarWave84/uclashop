@@ -1,34 +1,45 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Button } from '@/components/ui/button'
-import { ArrowRight } from '@lucide/vue'
+import { ArrowRight, Store } from '@lucide/vue'
 import { Skeleton } from '@/components/ui/skeleton'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'vue-sonner'
 import ProductGrid from '@/components/shop/ProductGrid.vue'
 import SessionBanner from '@/components/shop/SessionBanner.vue'
+import { storeLogoUrl } from '@/lib/storage'
 
 const loading = ref(true)
 const products = ref([])
+const stores = ref([])
 const currentSession = ref(null)
+const sessionProductCount = ref(0)
 
 const featuredProducts = computed(() => products.value.slice(0, 4))
 
 onMounted(async () => {
-  const [sessionRes, productsRes] = await Promise.all([
+  const [sessionRes, productsRes, storesRes] = await Promise.all([
     supabase.from('sales_sessions').select('*').eq('is_open', true).limit(1),
-    supabase.from('products').select('*').eq('is_active', true).limit(6),
+    supabase.from('products').select('*, stores(name, slug, phone)').eq('is_active', true).limit(6),
+    supabase.from('stores').select('*').order('name').limit(4),
   ])
 
   if (sessionRes.data?.length) {
     currentSession.value = sessionRes.data[0]
+    const { count } = await supabase
+      .from('product_sessions')
+      .select('product_id', { count: 'exact', head: true })
+      .eq('session_id', currentSession.value.id)
+    sessionProductCount.value = count || 0
   }
 
   if (productsRes.error) {
     toast.error('Error al cargar productos')
   } else {
-    products.value = productsRes.data ?? []
+    products.value = (productsRes.data ?? []).map((p) => ({ ...p, store: p.stores }))
   }
+
+  if (!storesRes.error) stores.value = storesRes.data ?? []
 
   loading.value = false
 })
@@ -42,7 +53,7 @@ onMounted(async () => {
       <SessionBanner
         v-else-if="currentSession"
         :session="currentSession"
-        :product-count="products.length"
+        :product-count="sessionProductCount"
       />
     </div>
 
@@ -62,7 +73,7 @@ onMounted(async () => {
           >
             Productos destacados
           </h2>
-          <p class="mt-1 text-sm text-ucla-900/50">Lo más popular de la jornada</p>
+          <p class="mt-1 text-sm text-ucla-900/50">Lo más popular del marketplace</p>
         </div>
       </div>
 
@@ -80,6 +91,51 @@ onMounted(async () => {
             Explorar catálogo completo
             <ArrowRight class="size-4" />
           </Button>
+        </router-link>
+      </div>
+    </section>
+
+    <section v-if="stores.length > 0" class="pb-12 sm:pb-16">
+      <div class="flex items-end justify-between">
+        <div>
+          <h2
+            class="text-2xl font-semibold leading-tight tracking-tight text-ucla-900"
+            style="font-family: var(--font-display)"
+          >
+            Tiendas del marketplace
+          </h2>
+          <p class="mt-1 text-sm text-ucla-900/50">Distintos negocios de la comunidad</p>
+        </div>
+        <router-link
+          to="/tiendas"
+          class="text-sm font-medium text-ucla-600 underline underline-offset-2 hover:text-ucla-700"
+        >
+          Ver todas
+        </router-link>
+      </div>
+
+      <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <router-link
+          v-for="store in stores"
+          :key="store.id"
+          :to="`/tiendas/${store.slug}`"
+          class="group flex items-center gap-3 rounded-xl border border-ucla-100 bg-white p-4 transition-all hover:shadow-md"
+        >
+          <div class="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-ucla-50 to-ucla-100">
+            <img
+              v-if="store.logo_path"
+              :src="storeLogoUrl(store.logo_path)"
+              :alt="store.name"
+              class="size-full object-cover"
+            />
+            <Store v-else class="size-5 text-ucla-300" />
+          </div>
+          <div class="min-w-0">
+            <p class="truncate text-sm font-semibold text-ucla-900 group-hover:text-ucla-600">
+              {{ store.name }}
+            </p>
+            <p class="truncate text-xs text-ucla-900/40">/tiendas/{{ store.slug }}</p>
+          </div>
         </router-link>
       </div>
     </section>

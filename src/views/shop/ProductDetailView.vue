@@ -4,18 +4,16 @@ import { useRoute } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCartStore } from '@/stores/cart'
-import { ShoppingCart, Minus, Plus, ArrowLeft, Package, ImageOff } from '@lucide/vue'
+import { ShoppingCart, Minus, Plus, ArrowLeft, Package, Store } from '@lucide/vue'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'vue-sonner'
 import { formatPrice } from '@/lib/utils'
-import PaymentInfo from '@/components/shop/PaymentInfo.vue'
 
 const route = useRoute()
 const cart = useCartStore()
 
 const loading = ref(true)
 const product = ref(null)
-const paymentAccount = ref(null)
 const quantity = ref(1)
 
 function productImageUrl(path) {
@@ -27,24 +25,16 @@ function productImageUrl(path) {
 }
 
 onMounted(async () => {
-  const [productRes, paymentRes] = await Promise.all([
-    supabase.from('products').select('*').eq('id', route.params.id).single(),
-    supabase.from('payment_accounts').select('*').eq('is_active', true),
-  ])
+  const { data, error } = await supabase
+    .from('products')
+    .select('*, stores(name, slug, phone)')
+    .eq('id', route.params.id)
+    .single()
 
-  if (productRes.error) {
+  if (error) {
     toast.error('Error al cargar el producto')
   } else {
-    product.value = productRes.data
-  }
-
-  if (paymentRes.error) {
-    toast.error('Error al cargar información de pago')
-  } else if (paymentRes.data?.length) {
-    paymentAccount.value = {
-      ...paymentRes.data[0],
-      holder: paymentRes.data[0].holder_name,
-    }
+    product.value = { ...data, store: data.stores }
   }
 
   loading.value = false
@@ -123,6 +113,15 @@ const stockVariant = computed(() => {
             {{ product.name }}
           </h1>
 
+          <router-link
+            v-if="product.store"
+            :to="`/tiendas/${product.store.slug}`"
+            class="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-ucla-600 transition-colors hover:text-ucla-700"
+          >
+            <Store class="size-4" />
+            {{ product.store.name }}
+          </router-link>
+
           <span
             class="mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium capitalize"
             :class="stockVariant"
@@ -168,8 +167,6 @@ const stockVariant = computed(() => {
           <ShoppingCart class="size-4" />
           Agregar al carrito
         </Button>
-
-        <PaymentInfo v-if="paymentAccount" :account="paymentAccount" class="!p-0 !border-0" />
       </div>
     </div>
 

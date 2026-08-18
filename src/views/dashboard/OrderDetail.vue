@@ -7,6 +7,13 @@ import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'vue-sonner'
 import { statusColors, statusLabels } from '@/lib/mock'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import PriceDisplay from '@/components/shared/PriceDisplay.vue'
 
 const route = useRoute()
@@ -50,14 +57,24 @@ async function handleStatusUpdate() {
   }
 }
 
+function normalizeReceiptPath(raw) {
+  if (!raw) return null
+  if (raw.startsWith('storage://receipts/')) return raw.replace('storage://receipts/', '')
+  return raw
+}
+
 async function openReceipt() {
   if (!order.value?.payment_receipt_url) return
-  const { data, error } = await supabase.storage
-    .from('receipts')
-    .createSignedUrl(order.value.payment_receipt_url, 3600)
+  const path = normalizeReceiptPath(order.value.payment_receipt_url)
+  if (/^https?:\/\//.test(path)) {
+    receiptSignedUrl.value = path
+    receiptDialogOpen.value = true
+    return
+  }
+  const { data, error } = await supabase.storage.from('receipts').createSignedUrl(path, 3600)
   if (error) {
     console.error('signedUrl', error)
-    toast.error('No se pudo cargar el comprobante')
+    toast.error('El comprobante no se encontró en el almacenamiento')
     return
   }
   receiptSignedUrl.value = data.signedUrl
@@ -133,14 +150,16 @@ function copy(text) {
       <div class="rounded-xl border border-neutral-200 bg-white p-5">
         <h2 class="text-sm font-semibold text-neutral-900">Gestión de estado</h2>
         <div class="mt-3 flex items-center gap-3">
-          <select
-            v-model="newStatus"
-            class="h-9 flex-1 rounded-md border border-input bg-transparent px-3 text-sm transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50 focus:outline-none"
-          >
-            <option v-for="(label, key) in statusLabels" :key="key" :value="key">
-              {{ label }}
-            </option>
-          </select>
+          <Select v-model="newStatus">
+            <SelectTrigger class="w-full flex-1">
+              <SelectValue placeholder="Seleccionar estado..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="(label, key) in statusLabels" :key="key" :value="key">
+                {{ label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
           <Button size="sm" @click="handleStatusUpdate">
             <Save class="size-4" />
             Actualizar

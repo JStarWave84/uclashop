@@ -14,6 +14,13 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const search = ref('')
 const accounts = ref([])
@@ -302,15 +309,16 @@ async function handleSave() {
           </div>
           <div class="grid gap-2">
             <Label for="acct-type">Tipo</Label>
-            <select
-              id="acct-type"
-              v-model="form.account_type"
-              class="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50 focus:outline-none"
-            >
-              <option value="personal">Personal</option>
-              <option value="juridica">Jurídica</option>
-              <option value="institucional">Institucional</option>
-            </select>
+            <Select v-model="form.account_type">
+              <SelectTrigger id="acct-type" class="w-full">
+                <SelectValue placeholder="Seleccionar tipo..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="personal">Personal</SelectItem>
+                <SelectItem value="juridica">Jurídica</SelectItem>
+                <SelectItem value="institucional">Institucional</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

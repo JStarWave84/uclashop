@@ -32,12 +32,21 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import PriceDisplay from '@/components/shared/PriceDisplay.vue'
 import { validateProduct } from '@/schemas/product'
+import { useAuthStore } from '@/stores/auth'
 
 const LOW_STOCK = 5
 
 const route = useRoute()
+const auth = useAuthStore()
 const search = ref('')
 const products = ref([])
 const dialogOpen = ref(false)
@@ -52,7 +61,7 @@ const form = ref({
   stock: 0,
   allow_backorder: false,
   is_active: true,
-  contact_phone: '',
+  store_id: '',
   payment_account_ids: [],
 })
 
@@ -61,14 +70,30 @@ const imageFile = ref(null)
 const imagePreview = ref(null)
 const dragOver = ref(false)
 const paymentAccounts = ref([])
+const stores = ref([])
 
 // Filters, sorting & pagination
 const statusFilter = ref('all')
 const stockFilter = ref('all')
+const storeFilter = ref('all')
 const sortKey = ref('created_at')
 const sortDir = ref('desc')
 const page = ref(1)
 const pageSize = ref(10)
+
+const stockOptions = [
+  { value: 'all', label: 'Todo el stock' },
+  { value: 'in_stock', label: 'Con stock' },
+  { value: 'low', label: `Stock bajo (≤ ${LOW_STOCK})` },
+  { value: 'out', label: 'Agotados' },
+  { value: 'backorder', label: 'Backorder' },
+]
+
+const pageSizeOptions = [
+  { value: '10', label: '10' },
+  { value: '25', label: '25' },
+  { value: '50', label: '50' },
+]
 
 // Bulk selection
 const selected = ref(new Set())
@@ -87,7 +112,7 @@ function productImageUrl(path) {
 async function fetchProducts() {
   const { data, error } = await supabase
     .from('products')
-    .select('*')
+    .select('*, stores(name)')
     .order('created_at', { ascending: false })
   if (error) {
     console.error('fetchProducts', error)
@@ -95,7 +120,11 @@ async function fetchProducts() {
     toast.error('Error cargando productos')
     return
   }
-  const result = (data || []).map((p) => ({ ...p, jornadas: [] }))
+  const result = (data || []).map((p) => ({
+    ...p,
+    store_name: p.stores?.name || '',
+    jornadas: [],
+  }))
 
   const { data: ps, error: psErr } = await supabase
     .from('product_sessions')
@@ -121,6 +150,7 @@ async function fetchProducts() {
 onMounted(async () => {
   await fetchProducts()
   await fetchPaymentAccounts()
+  await fetchStores()
   if (route.query.nuevo === '1') openNewDialog()
 })
 
@@ -131,6 +161,11 @@ async function fetchPaymentAccounts() {
     .eq('is_active', true)
     .order('name')
   if (data) paymentAccounts.value = data
+}
+
+async function fetchStores() {
+  const { data } = await supabase.from('stores').select('id, name, slug').order('name')
+  if (data) stores.value = data
 }
 
 function togglePaymentAccount(id) {
@@ -152,6 +187,7 @@ const filteredProducts = computed(() => {
     if (stockFilter.value === 'low' && !(p.stock > 0 && p.stock <= LOW_STOCK)) return false
     if (stockFilter.value === 'out' && !(p.stock === 0 && !p.allow_backorder)) return false
     if (stockFilter.value === 'backorder' && !p.allow_backorder) return false
+    if (storeFilter.value !== 'all' && p.store_id !== storeFilter.value) return false
     return true
   })
 })
@@ -194,7 +230,7 @@ const pageRange = computed(() => {
   return `${start}–${end}`
 })
 
-watch([search, statusFilter, stockFilter, pageSize], () => {
+watch([search, statusFilter, stockFilter, storeFilter, pageSize], () => {
   page.value = 1
 })
 
@@ -242,7 +278,7 @@ function resetForm() {
     stock: 0,
     allow_backorder: false,
     is_active: true,
-    contact_phone: '',
+    store_id: auth.storeId || stores.value[0]?.id || '',
     payment_account_ids: [],
   }
   formErrors.value = {}
@@ -272,7 +308,7 @@ async function openEditDialog(product) {
     stock: product.stock ?? 0,
     allow_backorder: product.allow_backorder ?? false,
     is_active: product.is_active ?? true,
-    contact_phone: product.contact_phone || '',
+    store_id: product.store_id || '',
     payment_account_ids: linkedIds,
   }
   formErrors.value = {}
@@ -364,7 +400,7 @@ async function handleSave() {
       stock: data.stock,
       allow_backorder: data.allow_backorder,
       is_active: data.is_active,
-      contact_phone: data.contact_phone || null,
+      store_id: form.value.store_id,
     }
 
     if (editingProduct.value) {
@@ -581,16 +617,27 @@ async function confirmDelete() {
             {{ opt.label }}
           </button>
         </div>
-        <select
-          v-model="stockFilter"
-          class="h-9 rounded-md border border-neutral-200 bg-white px-2 text-sm text-neutral-700 outline-none focus:border-ucla-400"
-        >
-          <option value="all">Todo el stock</option>
-          <option value="in_stock">Con stock</option>
-          <option value="low">Stock bajo (≤ {{ LOW_STOCK }})</option>
-          <option value="out">Agotados</option>
-          <option value="backorder">Backorder</option>
-        </select>
+        <Select v-model="stockFilter">
+          <SelectTrigger size="sm" class="w-full">
+            <SelectValue placeholder="Stock..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="opt in stockOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Select v-model="storeFilter">
+          <SelectTrigger size="sm" class="w-full">
+            <SelectValue placeholder="Todas las tiendas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las tiendas</SelectItem>
+            <SelectItem v-for="store in stores" :key="store.id" :value="store.id">
+              {{ store.name }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <p v-if="sortedProducts.length > 0" class="text-sm text-neutral-500">
@@ -678,7 +725,7 @@ async function confirmDelete() {
                 <ChevronsUpDown v-else class="size-3.5 opacity-40" />
               </button>
             </th>
-            <th class="px-4 py-3 font-medium text-neutral-500">Contacto</th>
+            <th class="px-4 py-3 font-medium text-neutral-500">Tienda</th>
             <th class="px-4 py-3 font-medium text-neutral-500">Jornadas</th>
             <th class="px-4 py-3">
               <button
@@ -746,8 +793,8 @@ async function confirmDelete() {
                 {{ stockMeta(product).badge }}
               </span>
             </td>
-            <td class="px-4 py-3 text-neutral-600 tabular-nums">
-              <span v-if="product.contact_phone">{{ product.contact_phone }}</span>
+            <td class="px-4 py-3 text-neutral-600">
+              <span v-if="product.store_name">{{ product.store_name }}</span>
               <span v-else class="text-neutral-300">—</span>
             </td>
             <td class="px-4 py-3">
@@ -884,7 +931,7 @@ async function confirmDelete() {
             </div>
 
             <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
-              <span v-if="product.contact_phone">WhatsApp: {{ product.contact_phone }}</span>
+              <span v-if="product.store_name">Tienda: {{ product.store_name }}</span>
               <span v-if="product.jornadas?.length > 0">
                 {{ product.jornadas.length }}
                 {{ product.jornadas.length === 1 ? 'jornada' : 'jornadas' }}
@@ -934,14 +981,19 @@ async function confirmDelete() {
     <div v-if="sortedProducts.length > 0" class="mt-4 flex items-center justify-between">
       <div class="flex items-center gap-2 text-sm text-neutral-500">
         <span>Filas por página</span>
-        <select
-          v-model.number="pageSize"
-          class="h-8 rounded-md border border-neutral-200 bg-white px-2 text-sm text-neutral-700 outline-none focus:border-ucla-400"
+        <Select
+          :model-value="String(pageSize)"
+          @update:model-value="pageSize = Number($event)"
         >
-          <option :value="10">10</option>
-          <option :value="25">25</option>
-          <option :value="50">50</option>
-        </select>
+          <SelectTrigger size="sm" class="w-20">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="opt in pageSizeOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div class="flex items-center gap-1">
         <Button
@@ -1090,16 +1142,17 @@ async function confirmDelete() {
         </div>
 
         <div class="grid gap-2">
-          <Label for="prod-contact">Número de contacto (WhatsApp)</Label>
-          <Input
-            id="prod-contact"
-            v-model="form.contact_phone"
-            type="tel"
-            placeholder="0412-1234567"
-          />
-          <p class="text-xs text-neutral-400">
-            Los pedidos de este producto se envían por WhatsApp a este número.
-          </p>
+          <Label for="prod-store">Tienda *</Label>
+          <Select v-model="form.store_id" required>
+            <SelectTrigger id="prod-store" class="w-full">
+              <SelectValue placeholder="Seleccionar tienda..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="store in stores" :key="store.id" :value="store.id">
+                {{ store.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div class="flex items-center gap-4">

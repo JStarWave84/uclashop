@@ -266,7 +266,7 @@ function handleSubmit() {
         <ChevronRight class="size-4" />
       </Button>
       <p class="mt-2 text-xs text-ucla-900/40">
-        * Crear el pedido no genera un cobro automático. Te daremos las instrucciones para pagar.
+        * Al crear el pedido se te mostrará un botón para notificarnos al WhatsApp.
       </p>
     </div>
   </form>

@@ -1,5 +1,12 @@
 <script setup>
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Search } from '@lucide/vue'
 
 defineProps({
@@ -9,6 +16,12 @@ defineProps({
 })
 
 const emit = defineEmits(['update:search', 'update:sortBy'])
+
+const sortOptions = [
+  { value: 'name', label: 'Nombre' },
+  { value: 'price-asc', label: 'Menor precio' },
+  { value: 'price-desc', label: 'Mayor precio' },
+]
 </script>
 
 <template>
@@ -40,15 +53,20 @@ const emit = defineEmits(['update:search', 'update:sortBy'])
         />
       </div>
 
-      <select
-        :value="sortBy"
-        class="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-ucla-900/70 transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50 focus:outline-none"
-        @change="emit('update:sortBy', $event.target.value)"
+      <Select
+        :model-value="sortBy"
+        class="w-40"
+        @update:model-value="emit('update:sortBy', $event)"
       >
-        <option value="name">Nombre</option>
-        <option value="price-asc">Menor precio</option>
-        <option value="price-desc">Mayor precio</option>
-      </select>
+        <SelectTrigger size="sm" class="w-full">
+          <SelectValue placeholder="Ordenar por..." />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   </header>
 </template>

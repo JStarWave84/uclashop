@@ -15,7 +15,7 @@ onMounted(() => {
 
 async function handleLogout() {
   await auth.signOut()
-  router.push('/admin/login')
+  router.push(auth.isAdmin ? '/admin/login' : '/tienda/login')
 }
 </script>
 

@@ -12,11 +12,25 @@ const routes = [
     component: () => import('@/views/dashboard/LoginView.vue'),
   },
 
-  // ── Admin dashboard (DashboardLayout parent) ──
+  // ── Store login / registration (standalone, no layout) ──
+  {
+    path: '/tienda/login',
+    name: 'store-login',
+    meta: { guest: true },
+    component: () => import('@/views/dashboard/LoginView.vue'),
+  },
+  {
+    path: '/registro-tienda',
+    name: 'store-register',
+    meta: { guest: true },
+    component: () => import('@/views/auth/StoreRegisterView.vue'),
+  },
+
+  // ── Admin dashboard (DashboardLayout parent, admin only) ──
   {
     path: '/admin',
     component: DashboardLayout,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresRole: 'admin' },
     children: [
       {
         path: '',
@@ -72,6 +86,45 @@ const routes = [
         path: 'cuentas-pago/:id/editar',
         redirect: '/admin/cuentas-pago',
       },
+      {
+        path: 'tiendas',
+        name: 'admin-stores',
+        component: () => import('@/views/dashboard/StoresList.vue'),
+      },
+      {
+        path: 'usuarios',
+        name: 'admin-users',
+        component: () => import('@/views/dashboard/AdminUsers.vue'),
+      },
+    ],
+  },
+
+  // ── Store dashboard (DashboardLayout parent, store users only) ──
+  {
+    path: '/tienda',
+    component: DashboardLayout,
+    meta: { requiresAuth: true, requiresRole: 'store' },
+    children: [
+      {
+        path: '',
+        name: 'store-dashboard',
+        component: () => import('@/views/store/StoreDashboardHome.vue'),
+      },
+      {
+        path: 'productos',
+        name: 'store-products',
+        component: () => import('@/views/store/StoreProductsList.vue'),
+      },
+      {
+        path: 'ajustes',
+        name: 'store-settings',
+        component: () => import('@/views/store/StoreSettings.vue'),
+      },
+      {
+        path: 'miembros',
+        name: 'store-members',
+        component: () => import('@/views/store/StoreMembers.vue'),
+      },
     ],
   },
 
@@ -81,6 +134,16 @@ const routes = [
     component: AppLayout,
     children: [
       { path: '', name: 'home', component: HomeView },
+      {
+        path: 'tiendas',
+        name: 'stores',
+        component: () => import('@/views/shop/StoresDirectory.vue'),
+      },
+      {
+        path: 'tiendas/:slug',
+        name: 'store-page',
+        component: () => import('@/views/shop/StorePage.vue'),
+      },
       {
         path: 'productos',
         name: 'catalog',
@@ -126,8 +189,7 @@ const router = createRouter({
   },
 })
 
-router.beforeEach(async (to, from, next) => {
-  const { useAuthStore } = await import('@/stores/auth')
+router.beforeEach(async (to, from, next) => {  const { useAuthStore } = await import('@/stores/auth')
   const auth = useAuthStore()
 
   if (auth.loading) {
@@ -148,10 +210,36 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
+  const requiredRole = to.meta.requiresRole
+
+  if (requiredRole) {
+    if (!auth.isAuthenticated) {
+      next({ name: requiredRole === 'admin' ? 'admin-login' : 'store-login' })
+      return
+    }
+    if (requiredRole === 'admin') {
+      if (auth.isAdmin) {
+        next()
+        return
+      }
+      next({ name: 'store-dashboard' })
+      return
+    }
+    // Store dashboard: store users, and anyone that belongs to a store
+    // (invited staff keep role NULL but get auth.store from their membership;
+    //  admins own the Tienda de la UCLA and manage it from here too)
+    if (auth.role === 'store' || !!auth.store) {
+      next()
+      return
+    }
+    next(auth.isAdmin ? { name: 'dashboard' } : { name: 'home' })
+    return
+  }
+
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     next({ name: 'admin-login' })
   } else if (to.meta.guest && auth.isAuthenticated) {
-    next({ name: 'dashboard' })
+    next(auth.isAdmin ? { name: 'dashboard' } : auth.store ? { name: 'store-dashboard' } : { name: 'home' })
   } else {
     next()
   }

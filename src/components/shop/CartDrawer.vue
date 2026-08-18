@@ -1,12 +1,12 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { ShoppingCart, MessageCircle, ArrowRight } from '@lucide/vue'
 import { useCartStore } from '@/stores/cart'
 import { formatPrice } from '@/lib/utils'
-import { resolveContactPhone, buildCartMessage, buildWhatsAppUrl } from '@/lib/whatsapp'
+import { groupCartByStore, buildCartMessage, buildWhatsAppUrl } from '@/lib/whatsapp'
 import CartItemRow from './CartItemRow.vue'
 
 const cart = useCartStore()
@@ -16,14 +16,15 @@ onMounted(() => {
   cart.loadJornadaProducts()
 })
 
+const storeGroups = computed(() => groupCartByStore(cart.items))
+
 function goTo(path) {
   cart.closeDrawer()
   setTimeout(() => router.push(path), 300)
 }
 
-async function buyOnWhatsApp() {
-  const phone = resolveContactPhone(cart.items)
-  const message = buildCartMessage(cart.items, cart.totalPrice)
+function buyOnWhatsApp(phone, items, total) {
+  const message = buildCartMessage(items, total)
   window.open(buildWhatsAppUrl(phone, message), '_blank', 'noopener,noreferrer')
 }
 </script>
@@ -78,10 +79,19 @@ async function buyOnWhatsApp() {
           Proceder al pago
           <ArrowRight class="size-4" />
         </Button>
-        <Button v-else @click="buyOnWhatsApp" class="mt-4 w-full">
-          <MessageCircle class="size-4" />
-          Comprar por WhatsApp
-        </Button>
+        <template v-else>
+          <div v-for="group in storeGroups" :key="group.storeId" class="mt-3">
+            <p class="text-[11px] font-medium text-ucla-900/50">{{ group.store.name }}</p>
+            <Button
+              class="mt-1.5 w-full"
+              size="sm"
+              @click="buyOnWhatsApp(group.phone, group.items, group.total)"
+            >
+              <MessageCircle class="size-3.5" />
+              Pedir por WhatsApp
+            </Button>
+          </div>
+        </template>
       </div>
     </SheetContent>
   </Sheet>

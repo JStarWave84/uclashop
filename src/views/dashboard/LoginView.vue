@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LogIn } from '@lucide/vue'
@@ -8,12 +8,15 @@ import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
 import { signIn } from '@/lib/supabaseClient'
 
+const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const email = ref('')
 const password = ref('')
 const error = ref('')
 const submitting = ref(false)
+
+const isStore = computed(() => route.name === 'store-login')
 
 async function handleLogin() {
   error.value = ''
@@ -27,7 +30,8 @@ async function handleLogin() {
   }
   await auth.fetchSession()
   toast.success('Sesión iniciada')
-  router.push('/admin')
+  const dest = auth.isAdmin ? '/admin' : auth.store ? '/tienda' : '/'
+  router.push(dest)
 }
 </script>
 
@@ -41,9 +45,11 @@ async function handleLogin() {
           class="text-3xl font-semibold tracking-tight text-ucla-900"
           style="font-family: var(--font-display)"
         >
-          UCLA <span class="text-ucla-500">Admin</span>
+          UCLA <span class="text-ucla-500">{{ isStore ? 'Tiendas' : 'Admin' }}</span>
         </h1>
-        <p class="mt-1 text-sm text-ucla-900/50">Iniciá sesión para gestionar la tienda</p>
+        <p class="mt-1 text-sm text-ucla-900/50">
+          {{ isStore ? 'Iniciá sesión para gestionar tu tienda' : 'Iniciá sesión para gestionar la tienda' }}
+        </p>
       </div>
 
       <form class="rounded-xl border border-ucla-100 bg-white p-6" @submit.prevent="handleLogin">
@@ -69,7 +75,15 @@ async function handleLogin() {
       </form>
 
       <p class="mt-6 text-center text-xs text-ucla-900/30">
-        &copy; {{ new Date().getFullYear() }} UCLA Shop
+        <template v-if="isStore">
+          ¿Todavía no tenés una tienda?
+          <router-link to="/registro-tienda" class="font-medium text-ucla-600 underline">
+            Registrate acá
+          </router-link>
+        </template>
+        <template v-else>
+          &copy; {{ new Date().getFullYear() }} UCLA Shop
+        </template>
       </p>
     </div>
   </div>

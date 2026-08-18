@@ -35,6 +35,8 @@ COMMENT ON TABLE public.profiles IS 'Admin profiles. id references auth.users(id
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
 LANGUAGE sql STABLE
+SECURITY DEFINER
+SET search_path = public
 AS $$
   SELECT EXISTS(
     SELECT 1 FROM public.profiles p

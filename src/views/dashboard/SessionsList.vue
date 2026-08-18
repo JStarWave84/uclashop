@@ -86,14 +86,14 @@ onMounted(fetchSessions)
 async function openNewDialog() {
   const { data: prods, error: pErr } = await supabase
     .from('products')
-    .select('id, name, price')
+    .select('id, name, price, stores(name)')
     .order('name')
   if (pErr) {
     console.error('loadProducts', pErr)
     toast.error('No se pudieron cargar productos')
     return
   }
-  products.value = prods || []
+  products.value = (prods || []).map((p) => ({ ...p, store_name: p.stores?.name || '' }))
 
   editingSession.value = null
   form.value = { name: '', start_date: '', end_date: '', is_open: true, product_ids: [] }
@@ -103,12 +103,12 @@ async function openNewDialog() {
 async function openEditDialog(session) {
   const { data: prods, error: pErr } = await supabase
     .from('products')
-    .select('id, name, price')
+    .select('id, name, price, stores(name)')
     .order('name')
   if (pErr) {
     console.error('loadProducts', pErr)
     toast.error('No se pudieron cargar productos')
-  } else products.value = prods || []
+  } else products.value = (prods || []).map((p) => ({ ...p, store_name: p.stores?.name || '' }))
 
   editingSession.value = session
   form.value = {
@@ -380,7 +380,12 @@ async function handleSave() {
                   class="size-4 rounded border-neutral-300 text-ucla-600 focus:ring-ucla-500"
                   @change="toggleProduct(product.id)"
                 />
-                <span class="flex-1">{{ product.name }}</span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate">{{ product.name }}</span>
+                  <span v-if="product.store_name" class="block text-xs text-neutral-400">
+                    {{ product.store_name }}
+                  </span>
+                </span>
                 <PriceDisplay :price="product.price" class="text-xs text-neutral-400" />
               </label>
               <p v-if="filteredProducts.length === 0" class="py-4 text-center text-xs text-neutral-400">

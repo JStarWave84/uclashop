@@ -1,6 +1,6 @@
 <script setup>
 import { Button } from '@/components/ui/button'
-import { ShoppingCart } from '@lucide/vue'
+import { ShoppingCart, Store } from '@lucide/vue'
 import { supabase } from '@/lib/supabaseClient'
 import { useCartStore } from '@/stores/cart'
 import { formatPrice } from '@/lib/utils'
@@ -37,6 +37,15 @@ function imageUrl(path) {
     </div>
 
     <div class="flex flex-1 flex-col gap-2 p-4">
+      <router-link
+        v-if="product.store"
+        :to="`/tiendas/${product.store.slug}`"
+        class="relative z-10 inline-flex items-center gap-1 text-[11px] font-medium text-ucla-600 transition-colors hover:text-ucla-700"
+      >
+        <Store class="size-3" />
+        {{ product.store.name }}
+      </router-link>
+
       <div class="flex items-start justify-between gap-2">
         <h3 class="text-sm font-medium leading-snug text-ucla-900">
           {{ product.name }}

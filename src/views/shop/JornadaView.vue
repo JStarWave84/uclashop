@@ -51,13 +51,16 @@ onMounted(async () => {
     return
   }
 
-  const { data: prods, error: pErr } = await supabase.from('products').select('*').in('id', pids)
+  const { data: prods, error: pErr } = await supabase
+    .from('products')
+    .select('*, stores(name, slug, phone)')
+    .in('id', pids)
   if (pErr) {
     console.error('fetchProducts', pErr)
     loading.value = false
     return
   }
-  sessionProducts.value = prods || []
+  sessionProducts.value = (prods || []).map((p) => ({ ...p, store: p.stores }))
   loading.value = false
 })
 

@@ -15,12 +15,6 @@ export const productSchema = z.object({
     .transform((s) => sanitize(s ?? '')),
   price: z.coerce.number().positive('El precio debe ser mayor a 0'),
   stock: z.coerce.number().int('El stock debe ser un número entero').min(0, 'El stock no puede ser negativo'),
-  contact_phone: z
-    .string()
-    .max(20)
-    .optional()
-    .default('')
-    .transform((s) => sanitize(s ?? '')),
   allow_backorder: z.boolean().optional().default(false),
   is_active: z.boolean().optional().default(true),
 })

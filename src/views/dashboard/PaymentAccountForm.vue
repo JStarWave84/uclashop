@@ -3,6 +3,13 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Save, ArrowLeft } from '@lucide/vue'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'vue-sonner'
@@ -128,14 +135,16 @@ async function handleSave() {
         </div>
         <div>
           <label class="mb-1.5 block text-xs font-medium text-neutral-600">Tipo</label>
-          <select
-            v-model="form.account_type"
-            class="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50 focus:outline-none"
-          >
-            <option value="personal">Personal</option>
-            <option value="juridica">Jurídica</option>
-            <option value="institucional">Institucional</option>
-          </select>
+          <Select v-model="form.account_type">
+            <SelectTrigger class="w-full">
+              <SelectValue placeholder="Seleccionar tipo..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="personal">Personal</SelectItem>
+              <SelectItem value="juridica">Jurídica</SelectItem>
+              <SelectItem value="institucional">Institucional</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

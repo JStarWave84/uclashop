@@ -27,6 +27,7 @@ function closeMenu() {
         <router-link
           v-for="link in [
             { to: '/', label: 'Inicio' },
+            { to: '/tiendas', label: 'Tiendas' },
             { to: '/productos', label: 'Catálogo' },
             { to: '/jornada', label: 'Jornada' },
             { to: '/carrito', label: 'Carrito' },
@@ -60,6 +61,7 @@ function closeMenu() {
         <router-link
           v-for="link in [
             { to: '/', label: 'Inicio' },
+            { to: '/tiendas', label: 'Tiendas' },
             { to: '/productos', label: 'Catálogo' },
             { to: '/jornada', label: 'Jornada' },
             { to: '/cart', label: 'Carrito' },

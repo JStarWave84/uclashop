@@ -18,23 +18,12 @@ const { rate: exchangeRate, loading: rateLoading } = useExchangeRate()
 const paymentAccounts = ref([])
 
 onMounted(async () => {
-  if (cart.items.length === 0) return
-
-  const productIds = cart.items.map((i) => i.id)
-  const { data: linked } = await supabase
-    .from('product_payment_accounts')
-    .select('payment_account_id, payment_accounts(*)')
-    .in('product_id', productIds)
-  if (linked && linked.length > 0) {
-    const seen = new Set()
-    paymentAccounts.value = linked
-      .filter((r) => {
-        if (seen.has(r.payment_account_id)) return false
-        seen.add(r.payment_account_id)
-        return true
-      })
-      .map((r) => r.payment_accounts)
-  }
+  const { data } = await supabase
+    .from('payment_accounts')
+    .select('*')
+    .eq('is_active', true)
+    .order('name')
+  paymentAccounts.value = data || []
 })
 
 async function placeOrder(data) {
@@ -70,9 +59,19 @@ async function placeOrder(data) {
       const file = data.receipt_file
       const ext = file.name.split('.').pop()
       const path = `${orderId}/${Date.now()}.${ext}`
-      await supabase.storage.from('receipts').upload(path, file, { upsert: true }).catch(() => {
+      const { error: uploadErr } = await supabase.storage
+        .from('receipts')
+        .upload(path, file, { upsert: true })
+      if (uploadErr) {
+        console.error('uploadReceipt', uploadErr)
         toast.error('La orden se creó, pero no se pudo subir el comprobante')
-      })
+      } else {
+        const { error: linkErr } = await supabase.rpc('set_order_receipt_url', {
+          p_order_id: orderId,
+          p_receipt_url: path,
+        })
+        if (linkErr) console.error('setOrderReceiptUrl', linkErr)
+      }
     }
 
     toast.success('Orden creada correctamente')

@@ -44,7 +44,7 @@ function formatDateRange(start, end) {
       </p>
 
       <div class="mt-6 flex flex-wrap gap-3">
-        <router-link to="/productos">
+        <router-link to="/jornada">
           <Button size="lg">
             Ver productos
             <ArrowRight class="size-4" />
