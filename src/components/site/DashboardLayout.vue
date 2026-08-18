@@ -35,7 +35,7 @@ async function handleLogout() {
 
         <div class="flex-1" />
 
-        <span class="text-sm text-muted-foreground">{{
+        <span class="min-w-0 flex-1 truncate text-right text-sm text-muted-foreground">{{
           auth.isAuthenticated ? auth.userEmail : 'No autenticado'
         }}</span>
         <button

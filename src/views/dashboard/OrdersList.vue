@@ -101,7 +101,7 @@ const filtered = computed(() => {
       </button>
     </div>
 
-    <div class="mt-4 overflow-hidden rounded-xl border border-neutral-200 bg-white">
+    <div class="mt-4 hidden overflow-hidden rounded-xl border border-neutral-200 bg-white lg:block">
       <table class="w-full text-left text-sm">
         <thead class="border-b border-neutral-100 bg-neutral-50/50">
           <tr>
@@ -152,6 +152,45 @@ const filtered = computed(() => {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <div class="mt-4 space-y-3 lg:hidden">
+      <div
+        v-for="order in filtered"
+        :key="order.id"
+        class="rounded-xl border border-neutral-200 bg-white p-4"
+      >
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <p class="break-all font-mono text-xs text-neutral-700">{{ order.id }}</p>
+            <p class="mt-1 font-medium text-neutral-900">
+              {{ order.customer_first_name }} {{ order.customer_last_name }}
+            </p>
+            <p class="text-xs text-neutral-400">{{ order.customer_phone }}</p>
+          </div>
+          <span
+            class="shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-medium capitalize"
+            :class="statusColors[order.status] || ''"
+          >
+            {{ statusLabels[order.status] || order.status }}
+          </span>
+        </div>
+
+        <div class="mt-3 flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs text-neutral-500">
+              {{ new Date(order.created_at).toLocaleDateString('es-ES') }}
+            </p>
+            <p class="mt-0.5 text-sm font-semibold text-neutral-700 tabular-nums">
+              <PriceDisplay :price="order.total" />
+            </p>
+          </div>
+          <Button size="sm" variant="outline" @click="router.push(`/admin/ordenes/${order.id}`)">
+            <Eye class="size-3.5" />
+            Ver detalle
+          </Button>
+        </div>
+      </div>
     </div>
   </div>
 </template>

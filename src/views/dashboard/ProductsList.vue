@@ -600,12 +600,12 @@ async function confirmDelete() {
 
     <div
       v-if="selected.size > 0"
-      class="mt-3 flex items-center justify-between rounded-lg border border-ucla-200 bg-ucla-50 px-3 py-2"
+      class="mt-3 flex flex-col gap-2 rounded-lg border border-ucla-200 bg-ucla-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
     >
       <span class="text-sm font-medium text-ucla-700">
         {{ selected.size }} {{ selected.size === 1 ? 'producto' : 'productos' }} seleccionados
       </span>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" @click="bulkSetActive(true)">Activar</Button>
         <Button size="sm" variant="outline" @click="bulkSetActive(false)">Desactivar</Button>
         <Button
@@ -627,7 +627,11 @@ async function confirmDelete() {
       </div>
     </div>
 
-    <div class="mt-6 overflow-hidden rounded-xl border border-neutral-200 bg-white">
+    <div v-if="paginated.length === 0" class="mt-6 py-12 text-center">
+      <Search class="mx-auto size-8 text-neutral-300" />
+      <p class="mt-3 text-sm text-neutral-500">No hay productos que coincidan</p>
+    </div>
+    <div v-else class="mt-6 hidden overflow-hidden rounded-xl border border-neutral-200 bg-white lg:block">
       <table class="w-full text-left text-sm">
         <thead class="border-b border-neutral-100 bg-neutral-50/50">
           <tr>
@@ -810,10 +814,120 @@ async function confirmDelete() {
           </tr>
         </tbody>
       </table>
+    </div>
 
-      <div v-if="paginated.length === 0" class="py-12 text-center">
-        <Search class="mx-auto size-8 text-neutral-300" />
-        <p class="mt-3 text-sm text-neutral-500">No hay productos que coincidan</p>
+    <div class="mt-6 space-y-3 lg:hidden">
+      <div
+        v-for="product in paginated"
+        :key="product.id"
+        class="rounded-xl border border-neutral-200 bg-white p-4"
+      >
+        <div class="flex items-start gap-3">
+          <input
+            type="checkbox"
+            :checked="selected.has(product.id)"
+            class="mt-1 size-4 shrink-0 rounded border-neutral-300 text-ucla-600 focus:ring-ucla-500"
+            :aria-label="'Seleccionar ' + product.name"
+            @change="toggleSelect(product.id)"
+          />
+          <div
+            v-if="product.product_image_path"
+            class="size-12 shrink-0 overflow-hidden rounded-lg bg-neutral-100"
+          >
+            <img
+              :src="productImageUrl(product.product_image_path)"
+              alt=""
+              class="size-full object-cover"
+            />
+          </div>
+          <div
+            v-else
+            class="flex size-12 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-xs text-neutral-400"
+          >
+            -
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <div class="flex items-start justify-between gap-2">
+              <p class="font-medium text-neutral-900">{{ product.name }}</p>
+              <span
+                v-if="product.is_active !== false"
+                class="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-600"
+              >
+                Activo
+              </span>
+              <span
+                v-else
+                class="shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500"
+              >
+                Inactivo
+              </span>
+            </div>
+            <p v-if="product.description" class="mt-0.5 line-clamp-1 text-xs text-neutral-400">
+              {{ product.description }}
+            </p>
+
+            <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <span class="font-medium text-neutral-700 tabular-nums">
+                <PriceDisplay :price="product.price" />
+              </span>
+              <span class="tabular-nums" :class="stockMeta(product).numCls">
+                Stock: {{ product.stock }}
+              </span>
+              <span
+                v-if="stockMeta(product).badge"
+                class="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                :class="stockMeta(product).badgeCls"
+              >
+                {{ stockMeta(product).badge }}
+              </span>
+            </div>
+
+            <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
+              <span v-if="product.contact_phone">WhatsApp: {{ product.contact_phone }}</span>
+              <span v-if="product.jornadas?.length > 0">
+                {{ product.jornadas.length }}
+                {{ product.jornadas.length === 1 ? 'jornada' : 'jornadas' }}
+              </span>
+            </div>
+
+            <div class="mt-3 flex items-center gap-1">
+              <a
+                v-if="product.is_active !== false"
+                :href="`/productos/${product.id}`"
+                target="_blank"
+                rel="noopener"
+                class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ucla-600"
+                aria-label="Ver en la tienda"
+                :title="'Ver en la tienda: ' + product.name"
+              >
+                <ExternalLink class="size-4" />
+              </a>
+              <button
+                class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ucla-600"
+                @click="openEditDialog(product)"
+                aria-label="Editar"
+              >
+                <Pencil class="size-4" />
+              </button>
+              <button
+                class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100"
+                @click="toggleActive(product.id)"
+                :aria-label="product.is_active !== false ? 'Desactivar' : 'Activar'"
+              >
+                <EyeOff v-if="product.is_active !== false" class="size-4" />
+                <Eye v-else class="size-4" />
+              </button>
+              <button
+                class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                @click="openDeleteDialog(product)"
+                aria-label="Eliminar"
+              >
+                <Trash2 class="size-4" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
