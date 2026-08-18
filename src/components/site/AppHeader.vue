@@ -15,14 +15,12 @@ function closeMenu() {
     <div class="ucla-ribbon" />
 
     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-      <router-link to="/" class="-m-1.5 flex items-baseline gap-1.5 p-1.5">
-        <span
-          class="text-2xl font-semibold leading-none tracking-tight text-ucla-700"
-          style="font-family: var(--font-display)"
-        >
-          UCLA
-        </span>
-        <span class="text-sm font-medium uppercase tracking-widest text-ucla-500"> Shop </span>
+      <router-link to="/" class="-m-1.5 flex items-center p-1.5" aria-label="UCLA Shop">
+        <img
+          src="/logo_uclashop.png"
+          alt="UCLA Shop"
+          class="h-9 w-auto"
+        />
       </router-link>
 
       <nav class="hidden items-center gap-8 md:flex">
