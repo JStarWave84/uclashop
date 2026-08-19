@@ -17,6 +17,7 @@ import {
   ShieldCheck,
 } from '@lucide/vue'
 import { supabase } from '@/lib/supabaseClient'
+import { optimizeProductImage } from '@/lib/imageOptimize'
 import { toast } from 'vue-sonner'
 import {
   Dialog,
@@ -148,11 +149,12 @@ function removeImage() {
 
 async function uploadImage(productId) {
   if (!imageFile.value) return null
-  const ext = imageFile.value.name.split('.').pop()
+  const optimized = await optimizeProductImage(imageFile.value)
+  const ext = optimized.name.split('.').pop()
   const path = `${productId}/${Date.now()}.${ext}`
   const { error } = await supabase.storage
     .from('product-images')
-    .upload(path, imageFile.value, { upsert: true })
+    .upload(path, optimized, { upsert: true })
   if (error) {
     console.error('uploadImage', error)
     throw error

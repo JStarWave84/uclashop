@@ -9,6 +9,7 @@ import { toast } from 'vue-sonner'
 import { supabase } from '@/lib/supabaseClient'
 import { useAuthStore } from '@/stores/auth'
 import { storeLogoUrl } from '@/lib/storage'
+import { optimizeLogoImage } from '@/lib/imageOptimize'
 
 const auth = useAuthStore()
 
@@ -87,11 +88,12 @@ async function handleSave() {
   try {
     let newLogoPath = logoPath.value
     if (logoFile.value) {
-      const ext = logoFile.value.name.split('.').pop()
+      const optimized = await optimizeLogoImage(logoFile.value)
+      const ext = optimized.name.split('.').pop()
       newLogoPath = `${auth.storeId}/logo.${ext}`
       const { error: upErr } = await supabase.storage
         .from('store-logos')
-        .upload(newLogoPath, logoFile.value, { upsert: true })
+        .upload(newLogoPath, optimized, { upsert: true })
       if (upErr) {
         toast.error('No se pudo subir el logo')
         console.error(upErr)

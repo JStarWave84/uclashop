@@ -8,6 +8,7 @@ import CheckoutForm from '@/components/shop/CheckoutForm.vue'
 import OrderSummary from '@/components/shop/OrderSummary.vue'
 import PaymentInfo from '@/components/shop/PaymentInfo.vue'
 import { supabase } from '@/lib/supabaseClient'
+import { optimizeReceiptImage } from '@/lib/imageOptimize'
 import { toast } from 'vue-sonner'
 import { useExchangeRate } from '@/composables/useExchangeRate'
 
@@ -56,7 +57,7 @@ async function placeOrder(data) {
     const orderId = result.id
 
     if (data.receipt_file) {
-      const file = data.receipt_file
+      const file = await optimizeReceiptImage(data.receipt_file)
       const ext = file.name.split('.').pop()
       const path = `${orderId}/${Date.now()}.${ext}`
       const { error: uploadErr } = await supabase.storage

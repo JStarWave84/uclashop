@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Store, ImageUp, Trash2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { supabase } from '@/lib/supabaseClient'
+import { optimizeLogoImage } from '@/lib/imageOptimize'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -69,11 +70,12 @@ function removeLogo() {
 
 async function uploadLogo(storeId) {
   if (!logoFile.value) return null
-  const ext = logoFile.value.name.split('.').pop()
+  const optimized = await optimizeLogoImage(logoFile.value)
+  const ext = optimized.name.split('.').pop()
   const path = `${storeId}/logo.${ext}`
   const { error } = await supabase.storage
     .from('store-logos')
-    .upload(path, logoFile.value, { upsert: true })
+    .upload(path, optimized, { upsert: true })
   if (error) {
     console.error('uploadLogo', error)
     throw error
