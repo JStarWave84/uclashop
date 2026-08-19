@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useHead } from '@unhead/vue'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCartStore } from '@/stores/cart'
@@ -23,6 +24,34 @@ function productImageUrl(path) {
   } = supabase.storage.from('product-images').getPublicUrl(path)
   return publicUrl
 }
+
+useHead(
+  computed(() => {
+    const description = product.value?.store
+      ? `${product.value.description || `Producto de ${product.value.store.name}`} · ${formatPrice(product.value.price)}`
+      : product.value?.description || 'Producto del marketplace universitario UCLA Shop.'
+    const image = product.value?.product_image_path
+      ? productImageUrl(product.value.product_image_path)
+      : '/og-default.png'
+    return {
+      title: product.value?.name,
+      meta: [
+        { key: 'description', name: 'description', content: description },
+        { key: 'og:title', property: 'og:title', content: product.value?.name },
+        { key: 'og:description', property: 'og:description', content: description },
+        { key: 'og:image', property: 'og:image', content: image },
+        {
+          key: 'og:url',
+          property: 'og:url',
+          content: product.value ? `${window.location.origin}${route.path}` : undefined,
+        },
+        { key: 'twitter:title', name: 'twitter:title', content: product.value?.name },
+        { key: 'twitter:description', name: 'twitter:description', content: description },
+        { key: 'twitter:image', name: 'twitter:image', content: image },
+      ],
+    }
+  }),
+)
 
 onMounted(async () => {
   const { data, error } = await supabase

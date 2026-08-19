@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useHead } from '@unhead/vue'
 import { ArrowLeft, Store, MessageCircle, Package, AlertCircle } from '@lucide/vue'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,57 @@ const route = useRoute()
 const loading = ref(true)
 const store = ref(null)
 const products = ref([])
+
+const defaultDescription =
+  'Marketplace universitario de la UCLA: explorá las tiendas de la comunidad y descubrí sus productos.'
+
+useHead(
+  computed(() => ({
+    title: store.value?.name,
+    meta: [
+      {
+        key: 'description',
+        name: 'description',
+        content: store.value?.description || defaultDescription,
+      },
+      {
+        key: 'og:title',
+        property: 'og:title',
+        content: store.value?.name,
+      },
+      {
+        key: 'og:description',
+        property: 'og:description',
+        content: store.value?.description || defaultDescription,
+      },
+      {
+        key: 'og:image',
+        property: 'og:image',
+        content: store.value?.logo_path ? storeLogoUrl(store.value.logo_path) : '/og-default.png',
+      },
+      {
+        key: 'og:url',
+        property: 'og:url',
+        content: store.value ? `${window.location.origin}${route.path}` : undefined,
+      },
+      {
+        key: 'twitter:title',
+        name: 'twitter:title',
+        content: store.value?.name,
+      },
+      {
+        key: 'twitter:description',
+        name: 'twitter:description',
+        content: store.value?.description || defaultDescription,
+      },
+      {
+        key: 'twitter:image',
+        name: 'twitter:image',
+        content: store.value?.logo_path ? storeLogoUrl(store.value.logo_path) : '/og-default.png',
+      },
+    ],
+  })),
+)
 
 onMounted(async () => {
   const { data: storeData, error } = await supabase
