@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,6 +17,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import PriceDisplay from '@/components/shared/PriceDisplay.vue'
+
+const route = useRoute()
 
 const sessions = ref([])
 const products = ref([])
@@ -81,7 +84,10 @@ async function fetchSessions() {
   })
 }
 
-onMounted(fetchSessions)
+onMounted(async () => {
+  await fetchSessions()
+  if (route.query.nuevo === '1') openNewDialog()
+})
 
 async function openNewDialog() {
   const { data: prods, error: pErr } = await supabase

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, RouterLink } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { Package, Receipt, Plus, ArrowRight, ClipboardList } from '@lucide/vue'
 import { supabase } from '@/lib/supabaseClient'
@@ -167,7 +167,7 @@ const statCards = computed(() => [
           <Button
             variant="outline"
             class="w-full justify-start"
-            as="router-link"
+            :as="RouterLink"
             to="/admin/productos?nuevo=1"
           >
             <Plus class="size-4" />
@@ -176,8 +176,8 @@ const statCards = computed(() => [
           <Button
             variant="outline"
             class="w-full justify-start"
-            as="router-link"
-            to="/admin/jornadas/nueva"
+            :as="RouterLink"
+            to="/admin/jornadas?nuevo=1"
           >
             <Plus class="size-4" />
             Nueva jornada
@@ -185,7 +185,7 @@ const statCards = computed(() => [
           <Button
             variant="outline"
             class="w-full justify-start"
-            as="router-link"
+            :as="RouterLink"
             to="/admin/ordenes"
           >
             <ArrowRight class="size-4" />

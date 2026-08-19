@@ -36,8 +36,6 @@ const assignRole = ref('staff')
 const editingUser = ref(null)
 const editForm = ref({
   full_name: '',
-  email: '',
-  password: '',
   role: 'none',
 })
 
@@ -58,7 +56,17 @@ const form = ref({
   password: '',
   store_id: '',
   role_in_store: 'staff',
+  role: 'none',
 })
+
+const currentUserId = ref(null)
+const deleteConfirmOpen = ref(false)
+const userToDelete = ref(null)
+
+const adminCount = computed(() => users.value.filter((u) => u.role === 'admin').length)
+function isLastAdmin(user) {
+  return user.role === 'admin' && adminCount.value <= 1
+}
 
 const storeOptions = computed(() => stores.value.map((s) => ({ value: s.id, label: s.name })))
 
@@ -85,9 +93,11 @@ async function fetchStores() {
   stores.value = data || []
 }
 
-onMounted(() => {
+onMounted(async () => {
   fetchUsers()
   fetchStores()
+  const { data: current } = await supabase.auth.getUser()
+  currentUserId.value = current?.user?.id ?? null
 })
 
 async function createUser() {
@@ -105,6 +115,7 @@ async function createUser() {
       full_name: form.value.full_name.trim() || null,
       store_id: form.value.store_id || null,
       role_in_store: form.value.role_in_store,
+      role: form.value.role === 'none' ? null : form.value.role,
     },
   })
   creating.value = false
@@ -114,7 +125,7 @@ async function createUser() {
     return
   }
   toast.success('Usuario creado')
-  form.value = { full_name: '', email: '', password: '', store_id: '', role_in_store: 'staff' }
+  form.value = { full_name: '', email: '', password: '', store_id: '', role_in_store: 'staff', role: 'none' }
   await fetchUsers()
 }
 
@@ -158,8 +169,6 @@ function openEdit(user) {
   editingUser.value = user
   editForm.value = {
     full_name: user.full_name || '',
-    email: user.email || '',
-    password: '',
     role: user.role || 'none',
   }
   editDialogOpen.value = true
@@ -167,17 +176,10 @@ function openEdit(user) {
 
 async function saveEdit() {
   if (!editingUser.value) return
-  if (!editForm.value.email) return toast.error('El correo es obligatorio')
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.value.email))
-    return toast.error('Ingresá un correo válido')
-  if (editForm.value.password && editForm.value.password.length < 6)
-    return toast.error('La contraseña debe tener al menos 6 caracteres')
 
   const body = { user_id: editingUser.value.user_id }
   if (editForm.value.full_name !== (editingUser.value.full_name || ''))
     body.full_name = editForm.value.full_name
-  if (editForm.value.email !== editingUser.value.email) body.email = editForm.value.email
-  if (editForm.value.password) body.password = editForm.value.password
   if ((editForm.value.role || 'none') !== (editingUser.value.role || 'none'))
     body.role = editForm.value.role === 'none' ? null : editForm.value.role
 
@@ -194,15 +196,23 @@ async function saveEdit() {
   await fetchUsers()
 }
 
-async function deleteUser(user) {
+function openDeleteConfirm(user) {
+  userToDelete.value = user
+  deleteConfirmOpen.value = true
+}
+
+async function confirmDelete() {
+  if (!userToDelete.value) return
   const { error } = await supabase.functions.invoke('admin-delete-user', {
-    body: { user_id: user.user_id }
+    body: { user_id: userToDelete.value.user_id }
   })
   if (error) {
     toast.error(error.message || 'No se pudo eliminar el usuario')
     return
   }
   toast.success('Usuario eliminado')
+  deleteConfirmOpen.value = false
+  userToDelete.value = null
   await fetchUsers()
 }
 </script>
@@ -247,6 +257,23 @@ async function deleteUser(user) {
             <KeyRound class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
             <Input id="user-password" v-model="form.password" type="password" placeholder="Mínimo 6 caracteres" class="pl-9" />
           </div>
+        </div>
+
+        <div>
+          <Label>Rol del sistema</Label>
+          <Select v-model="form.role">
+            <SelectTrigger class="mt-1.5 w-full">
+              <SelectValue placeholder="Rol del sistema" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="opt in profileRoleOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <p v-if="form.role === 'admin'" class="mt-1 text-xs text-ucla-600">
+            Acceso total al panel de administración.
+          </p>
         </div>
 
         <div>
@@ -344,10 +371,13 @@ async function deleteUser(user) {
                 Agregar a tienda
               </Button>
               <Button
+                v-if="user.user_id !== currentUserId"
                 size="sm"
                 variant="ghost"
-                class="text-neutral-400 hover:text-red-500"
-                @click="deleteUser(user)"
+                :disabled="isLastAdmin(user)"
+                :title="isLastAdmin(user) ? 'No se puede eliminar el último administrador' : undefined"
+                class="text-neutral-400 hover:text-red-500 disabled:cursor-not-allowed"
+                @click="openDeleteConfirm(user)"
               >
                 <Trash2 class="size-3.5" />
               </Button>
@@ -434,22 +464,6 @@ async function deleteUser(user) {
           </div>
 
           <div>
-            <Label for="edit-email">Correo *</Label>
-            <div class="relative mt-1.5">
-              <Mail class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
-              <Input id="edit-email" v-model="editForm.email" type="email" class="pl-9" />
-            </div>
-          </div>
-
-          <div>
-            <Label for="edit-password">Contraseña</Label>
-            <div class="relative mt-1.5">
-              <KeyRound class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
-              <Input id="edit-password" v-model="editForm.password" type="password" placeholder="Nueva contraseña (opcional)" class="pl-9" />
-            </div>
-          </div>
-
-          <div>
             <Label>Rol</Label>
             <Select v-model="editForm.role">
               <SelectTrigger class="mt-1.5 w-full">
@@ -470,6 +484,21 @@ async function deleteUser(user) {
             </Button>
           </DialogFooter>
         </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="deleteConfirmOpen">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Eliminar usuario</DialogTitle>
+          <DialogDescription>
+            ¿Eliminar a {{ userToDelete?.full_name || userToDelete?.email }}? Esta acción no se puede deshacer.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" @click="deleteConfirmOpen = false">Cancelar</Button>
+          <Button variant="destructive" @click="confirmDelete">Eliminar</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   </div>

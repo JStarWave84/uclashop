@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
       return json({ error: 'No autorizado' }, 401)
     }
 
-    const { user_id, full_name, email, password, role } = await req.json()
+    const { user_id, full_name, role } = await req.json()
 
     if (!user_id) {
       return json({ error: 'user_id es obligatorio' }, 400)
@@ -34,8 +34,7 @@ Deno.serve(async (req) => {
 
     const serviceClient = createClient(supabaseUrl, serviceKey)
 
-    // Cliente con el contexto del admin (JWT en Authorization) para que los
-    // triggers de profiles (protect_profile_role) vean auth.uid() del admin.
+    // Cliente con el contexto del admin (JWT en Authorization) para verificar la sesión.
     const adminContextClient = createClient(supabaseUrl, serviceKey, {
       global: { headers: { Authorization: `Bearer ${token}` } },
     })
@@ -53,9 +52,17 @@ Deno.serve(async (req) => {
 
     // Construimos el patch de perfil solo con lo que venga en el body
     const profilePatch: Record<string, any> = {}
-    if (full_name !== undefined) profilePatch.full_name = full_name
+    const rpcArgs: Record<string, any> = { p_user_id: user_id }
+    if (full_name !== undefined) {
+      profilePatch.full_name = full_name
+      rpcArgs.p_full_name = full_name
+    }
     // Solo admin puede cambiar el role
-    if (role !== undefined && profile?.role === 'admin') profilePatch.role = role || null
+    if (role !== undefined && profile?.role === 'admin') {
+      profilePatch.role = role || null
+      rpcArgs.p_role = role || null
+      rpcArgs.p_set_role = true
+    }
 
     // Verificación de permisos:
     // - Admin: puede editar cualquier usuario
@@ -67,29 +74,16 @@ Deno.serve(async (req) => {
       return json({ error: 'No tienes permiso para editar este usuario' }, 403)
     }
 
-    // Actualizar auth (email y/or password) si se proporcionaron
-    const authUpdates: Record<string, any> = {}
-    if (email) {
-      authUpdates.email = email
-      authUpdates.email_confirm = true
-    }
-    if (password) authUpdates.password = password
+    // El correo y la contraseña no se pueden editar desde esta función.
 
-    if (Object.keys(authUpdates).length > 0) {
-      const { error: authError } = await serviceClient.auth.admin.updateUserById(user_id, authUpdates)
-      if (authError) {
-        return json({ error: authError.message || 'No se pudo actualizar el usuario' }, 400)
-      }
-    }
-
-    // Actualizar perfil
+    // Actualizar perfil vía RPC SECURITY DEFINER (admin_update_user_profile).
+    // La llamamos con adminContextClient (JWT del admin en Authorization) para
+    // que auth.uid() sea el del admin y el trigger protect_profile_role permita
+    // asignar el rol 'admin'; la RPC salta RLS y permite editar a cualquier usuario.
     if (Object.keys(profilePatch).length > 0) {
-      const { error: profileError } = await adminContextClient
-        .from('profiles')
-        .update(profilePatch)
-        .eq('id', user_id)
-      if (profileError) {
-        return json({ error: profileError.message || 'No se pudo actualizar el perfil' }, 400)
+      const { error: rpcError } = await adminContextClient.rpc('admin_update_user_profile', rpcArgs)
+      if (rpcError) {
+        return json({ error: rpcError.message || 'No se pudo actualizar el perfil' }, 400)
       }
     }
 

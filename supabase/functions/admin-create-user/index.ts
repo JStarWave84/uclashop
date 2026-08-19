@@ -23,10 +23,14 @@ Deno.serve(async (req) => {
       return json({ error: 'No autorizado' }, 401)
     }
 
-    const { email, password, full_name, store_id, role_in_store } = await req.json()
+    const { email, password, full_name, store_id, role_in_store, role } = await req.json()
 
     if (!email || !password) {
       return json({ error: 'Correo y contraseña son obligatorios' }, 400)
+    }
+
+    if (role !== undefined && role !== null && !['store', 'admin'].includes(role)) {
+      return json({ error: 'Rol inválido' }, 400)
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -64,6 +68,29 @@ Deno.serve(async (req) => {
     }
 
     const userId = created.user.id
+
+    // Sistema: asignar rol del sistema si se pidió. Para 'admin' usamos la RPC
+    // admin_update_user_profile con el JWT del llamador (userClient) para que
+    // el trigger protect_profile_role vea auth.uid() del admin y permita la
+    // asignación; para 'store' alcanza con un update directo vía service role.
+    if (role === 'admin') {
+      const { error: roleError } = await userClient.rpc('admin_update_user_profile', {
+        p_user_id: userId,
+        p_role: 'admin',
+        p_set_role: true,
+      })
+      if (roleError) {
+        return json({ error: roleError.message || 'No se pudo asignar el rol' }, 400)
+      }
+    } else if (role === 'store') {
+      const { error: roleError } = await serviceClient
+        .from('profiles')
+        .update({ role: 'store' })
+        .eq('id', userId)
+      if (roleError) {
+        return json({ error: roleError.message || 'No se pudo asignar el rol' }, 400)
+      }
+    }
 
     if (store_id) {
       const membershipError = await assignToStore(serviceClient, userId, store_id, role_in_store)

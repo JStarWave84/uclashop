@@ -54,18 +54,34 @@ Deno.serve(async (req) => {
       return json({ error: 'Solo un administrador puede eliminar usuarios' }, 403)
     }
 
-    // Eliminar la cuenta de auth
+    // Un admin no puede eliminar su propia cuenta
+    if (identity.user.id === user_id) {
+      return json({ error: 'No podés eliminar tu propia cuenta' }, 400)
+    }
+
+    // No se puede eliminar al último administrador del sistema
+    const { data: targetProfile } = await serviceClient
+      .from('profiles')
+      .select('role')
+      .eq('id', user_id)
+      .maybeSingle()
+
+    if (targetProfile?.role === 'admin') {
+      const { count } = await serviceClient
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('role', 'admin')
+      if ((count ?? 0) <= 1) {
+        return json({ error: 'No se puede eliminar el último administrador' }, 400)
+      }
+    }
+
+    // Eliminar la cuenta de auth. El perfil y las membresías se limpian solos
+    // por ON DELETE CASCADE (profiles_auth_user_fk y store_members.user_id).
     const { error: deleteError } = await serviceClient.auth.admin.deleteUser(user_id)
     if (deleteError) {
       return json({ error: deleteError.message || 'No se pudo eliminar el usuario' }, 400)
     }
-
-    // Opcional: también eliminar el perfil y la membresía en store
-    // (comentado para mantenerlo simple; si se necesita, descomentar abajo)
-    /*
-    await serviceClient.from('profiles').delete().eq('id', user_id)
-    await serviceClient.from('store_members').delete().eq('user_id', user_id)
-    */
 
     return json({ ok: true, message: 'Usuario eliminado' }, 200)
   } catch (err) {
