@@ -11,8 +11,14 @@ import {
   Settings,
   Users,
   ChevronLeft,
+  X,
 } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth'
+
+const props = defineProps({
+  mobile: { type: Boolean, default: false },
+})
+const emit = defineEmits(['close'])
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -49,58 +55,93 @@ function isActive(link) {
   if (link.exact) return route.path === link.to
   return route.path.startsWith(link.to)
 }
+
+function itemPadding() {
+  return props.mobile ? 'min-h-12 px-4 py-3' : 'px-3 py-2.5'
+}
+
+function itemClass(link) {
+  return isActive(link)
+    ? 'bg-white/10 text-white'
+    : 'text-ucla-200/60 hover:bg-ucla-700/40 hover:text-ucla-200'
+}
+
+function iconClass() {
+  return props.mobile ? 'size-5' : 'size-4'
+}
 </script>
 
 <template>
   <aside
-    class="flex flex-col bg-ucla-900 transition-all duration-300"
-    :class="collapsed ? 'w-16' : 'w-60'"
+    class="flex h-full flex-col bg-ucla-900 transition-[width] duration-300"
+    :class="props.mobile ? 'w-full' : collapsed ? 'w-16' : 'w-60'"
   >
-    <div class="flex h-14 items-center border-b border-ucla-700/50 px-3">
-      <router-link :to="home" class="flex items-center gap-2 overflow-hidden">
+    <div class="flex h-14 shrink-0 items-center gap-2 border-b border-ucla-700/50 px-4">
+      <router-link
+        :to="home"
+        class="flex min-w-0 flex-1 items-center gap-2.5"
+        @click="props.mobile && emit('close')"
+      >
         <span
-          class="shrink-0 text-lg font-semibold tracking-tight text-white"
+          class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-ucla-gold font-bold text-ucla-900 shadow-sm"
           style="font-family: var(--font-display)"
         >
           U
         </span>
         <span
           v-show="!collapsed"
-          class="text-sm font-medium uppercase tracking-widest text-ucla-gold-light"
+          class="truncate text-sm font-medium uppercase tracking-widest text-ucla-gold-light"
         >
           {{ brand }}
         </span>
       </router-link>
 
       <button
+        v-if="!props.mobile"
         class="ml-auto shrink-0 text-ucla-200/50 transition-colors hover:text-white"
         @click="collapsed = !collapsed"
         :aria-label="collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'"
       >
         <ChevronLeft class="size-4 transition-transform" :class="{ 'rotate-180': collapsed }" />
       </button>
+
+      <button
+        v-else
+        class="flex size-11 shrink-0 items-center justify-center rounded-lg text-ucla-200/70 transition-colors hover:bg-white/10 hover:text-white"
+        @click="emit('close')"
+        aria-label="Cerrar menú"
+      >
+        <X class="size-5" />
+      </button>
     </div>
 
-    <nav class="flex-1 overflow-y-auto p-2">
+    <nav class="flex-1 overflow-y-auto p-3">
       <router-link
         v-for="link in adminNav"
         :key="link.to"
         :to="link.to"
-        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
-        :class="
-          isActive(link)
-            ? 'bg-ucla-700/60 text-ucla-gold-light'
-            : 'text-ucla-200/60 hover:bg-ucla-700/40 hover:text-ucla-200'
-        "
+        class="relative flex items-center gap-3 rounded-lg font-medium transition-colors"
+        :class="[itemPadding(), itemClass(link)]"
+        @click="props.mobile && emit('close')"
       >
-        <component :is="link.icon" class="size-4 shrink-0" />
+        <span
+          v-if="isActive(link)"
+          class="absolute inset-y-2 left-0 w-1 rounded-r-full bg-ucla-gold"
+          aria-hidden="true"
+        />
+        <component
+          :is="link.icon"
+          class="shrink-0 transition-colors"
+          :class="[iconClass(), isActive(link) ? 'text-ucla-gold-light' : '']"
+          aria-hidden="true"
+        />
         <span v-show="!collapsed" class="truncate">{{ link.label }}</span>
       </router-link>
 
       <p
         v-if="isAdminWithStore"
         v-show="!collapsed"
-        class="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-ucla-200/40"
+        class="px-3 pb-1 pt-5 text-[11px] font-semibold uppercase tracking-widest text-ucla-200/40"
       >
         Mi tienda
       </p>
@@ -109,22 +150,31 @@ function isActive(link) {
         v-for="link in storeNav"
         :key="link.to"
         :to="link.to"
-        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
-        :class="
-          isActive(link)
-            ? 'bg-ucla-700/60 text-ucla-gold-light'
-            : 'text-ucla-200/60 hover:bg-ucla-700/40 hover:text-ucla-200'
-        "
+        class="relative flex items-center gap-3 rounded-lg font-medium transition-colors"
+        :class="[itemPadding(), itemClass(link)]"
+        @click="props.mobile && emit('close')"
       >
-        <component :is="link.icon" class="size-4 shrink-0" />
+        <span
+          v-if="isActive(link)"
+          class="absolute inset-y-2 left-0 w-1 rounded-r-full bg-ucla-gold"
+          aria-hidden="true"
+        />
+        <component
+          :is="link.icon"
+          class="shrink-0 transition-colors"
+          :class="[iconClass(), isActive(link) ? 'text-ucla-gold-light' : '']"
+          aria-hidden="true"
+        />
         <span v-show="!collapsed" class="truncate">{{ link.label }}</span>
       </router-link>
     </nav>
 
-    <div class="border-t border-ucla-700/50 p-2">
+    <div class="border-t border-ucla-700/50 p-3">
       <router-link
         :to="home"
-        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium text-ucla-200/40 transition-colors hover:text-ucla-200"
+        class="flex items-center gap-3 rounded-lg text-xs font-medium text-ucla-200/40 transition-colors hover:text-ucla-200"
+        :class="props.mobile ? 'min-h-11 py-3' : 'py-2.5'"
+        @click="props.mobile && emit('close')"
       >
         <ChevronLeft class="size-3.5 shrink-0" />
         <span v-show="!collapsed">{{ backLabel }}</span>
