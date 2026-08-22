@@ -20,6 +20,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { useAuthStore } from '@/stores/auth'
 import { storeLogoUrl } from '@/lib/storage'
 import { optimizeLogoImage } from '@/lib/imageOptimize'
+import { formatVePhone } from '@/lib/utils'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -57,6 +58,11 @@ function onStoreNameInput() {
 function onSlugInput() {
   slugTouched.value = true
   setupForm.value.slug = slugify(setupForm.value.slug)
+}
+
+function onPhoneInput(e) {
+  e.target.value = formatVePhone(e.target.value)
+  setupForm.value.phone = e.target.value
 }
 
 function onLogoSelected(e) {
@@ -174,7 +180,7 @@ const pendingLogo = computed(() => logoPreview.value)
             </div>
             <div class="grid gap-2">
               <Label for="setup-phone">Número de WhatsApp *</Label>
-              <Input id="setup-phone" v-model="setupForm.phone" type="tel" placeholder="0412-1234567" />
+              <Input id="setup-phone" v-model="setupForm.phone" type="tel" placeholder="0412-1234567" @input="onPhoneInput" />
             </div>
             <div class="grid gap-2">
               <Label for="setup-desc">Descripción</Label>

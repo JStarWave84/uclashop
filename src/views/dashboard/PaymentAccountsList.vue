@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Plus, Pencil, Search } from '@lucide/vue'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'vue-sonner'
+import { formatVePhone } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,11 @@ const typeLabels = {
   personal: 'Personal',
   juridica: 'Jurídica',
   institucional: 'Institucional',
+}
+
+function onPhoneInput(e) {
+  e.target.value = formatVePhone(e.target.value)
+  form.value.phone = e.target.value
 }
 
 function openNewDialog() {
@@ -298,7 +304,7 @@ async function handleSave() {
           </div>
           <div class="grid gap-2">
             <Label for="acct-phone">Teléfono</Label>
-            <Input id="acct-phone" v-model="form.phone" type="tel" placeholder="0412-1234567" />
+            <Input id="acct-phone" v-model="form.phone" type="tel" placeholder="0412-1234567" @input="onPhoneInput" />
           </div>
         </div>
 

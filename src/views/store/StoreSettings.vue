@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { useAuthStore } from '@/stores/auth'
 import { storeLogoUrl } from '@/lib/storage'
 import { optimizeLogoImage } from '@/lib/imageOptimize'
+import { formatVePhone } from '@/lib/utils'
 
 const auth = useAuthStore()
 
@@ -35,6 +36,11 @@ function slugify(s) {
     .replace(/[^a-z0-9\s-]/g, '')
     .trim()
     .replace(/[\s_]+/g, '-')
+}
+
+function onPhoneInput(e) {
+  e.target.value = formatVePhone(e.target.value)
+  form.value.phone = e.target.value
 }
 
 const validSlug = computed(() => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(form.value.slug))
@@ -224,7 +230,7 @@ async function updateUserName() {
 
       <div class="grid gap-2">
         <Label for="set-phone">Número de WhatsApp</Label>
-        <Input id="set-phone" v-model="form.phone" type="tel" placeholder="0412-1234567" />
+        <Input id="set-phone" v-model="form.phone" type="tel" placeholder="0412-1234567" @input="onPhoneInput" />
         <p class="text-xs text-neutral-400">
           Los pedidos de tus productos se envían a este número.
         </p>

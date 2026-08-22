@@ -9,6 +9,7 @@ import { Store, ImageUp, Trash2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { supabase } from '@/lib/supabaseClient'
 import { optimizeLogoImage } from '@/lib/imageOptimize'
+import { formatVePhone } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -36,6 +37,11 @@ function slugify(s) {
     .replace(/[^a-z0-9\s-]/g, '')
     .trim()
     .replace(/[\s_]+/g, '-')
+}
+
+function onPhoneInput(e) {
+  e.target.value = formatVePhone(e.target.value)
+  form.value.phone = e.target.value
 }
 
 function onStoreNameInput() {
@@ -226,7 +232,7 @@ async function handleSubmit() {
 
         <div class="grid gap-2">
           <Label for="reg-phone">Número de WhatsApp *</Label>
-          <Input id="reg-phone" v-model="form.phone" type="tel" placeholder="0412-1234567" />
+          <Input id="reg-phone" v-model="form.phone" type="tel" placeholder="0412-1234567" @input="onPhoneInput" />
           <p class="text-xs text-neutral-400">
             Los pedidos de tus productos se envían a este número.
           </p>

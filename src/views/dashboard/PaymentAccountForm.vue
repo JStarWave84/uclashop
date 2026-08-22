@@ -13,6 +13,7 @@ import {
 import { Save, ArrowLeft } from '@lucide/vue'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'vue-sonner'
+import { formatVePhone } from '@/lib/utils'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +44,11 @@ onMounted(async () => {
     } else form.value = { ...data }
   }
 })
+
+function onPhoneInput(e) {
+  e.target.value = formatVePhone(e.target.value)
+  form.value.phone = e.target.value
+}
 
 async function handleSave() {
   try {
@@ -124,7 +130,7 @@ async function handleSave() {
         </div>
         <div>
           <label class="mb-1.5 block text-xs font-medium text-neutral-600">Teléfono</label>
-          <Input v-model="form.phone" type="tel" placeholder="0412-1234567" />
+          <Input v-model="form.phone" type="tel" placeholder="0412-1234567" @input="onPhoneInput" />
         </div>
       </div>
 

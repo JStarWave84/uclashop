@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ChevronRight, Trash2, ImageUp } from '@lucide/vue'
 import { validateCheckout } from '@/schemas/checkout'
+import { formatVePhone } from '@/lib/utils'
 
 const emit = defineEmits(['submit'])
 
@@ -66,8 +67,7 @@ function formatCi(e) {
 }
 
 function formatPhone(e) {
-  const digits = e.target.value.replace(/[^\d]/g, '').slice(0, 11)
-  const formatted = digits.length > 4 ? digits.slice(0, 4) + '-' + digits.slice(4) : digits
+  const formatted = formatVePhone(e.target.value)
   e.target.value = formatted
   form.phone = formatted
 }

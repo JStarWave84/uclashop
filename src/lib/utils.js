@@ -24,3 +24,8 @@ export function formatPrice(price) {
     currency: 'USD',
   })
 }
+
+export function formatVePhone(value) {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 11)
+  return digits.length > 4 ? digits.slice(0, 4) + '-' + digits.slice(4) : digits
+}
