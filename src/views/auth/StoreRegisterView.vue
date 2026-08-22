@@ -151,6 +151,7 @@ async function handleSubmit() {
       }
       localStorage.removeItem('ucla_pending_store')
       localStorage.removeItem('ucla_pending_logo')
+      await auth.fetchSession()
       toast.success('Tienda registrada. Esperá la verificación del Centro de Estudiantes.')
       router.push('/tienda')
     } else {

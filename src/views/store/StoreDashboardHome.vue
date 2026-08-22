@@ -82,6 +82,21 @@ function removeLogo() {
   logoPreview.value = null
 }
 
+function loadPendingStore() {
+  let pending = null
+  try {
+    pending = JSON.parse(localStorage.getItem('ucla_pending_store') || 'null')
+  } catch (err) {
+    console.error('loadPendingStore', err)
+  }
+  if (!pending) return
+  setupForm.value.store_name = pending.store_name || ''
+  setupForm.value.slug = slugify(pending.slug || '')
+  slugTouched.value = true
+  setupForm.value.description = pending.description || ''
+  setupForm.value.phone = formatVePhone(pending.phone || '')
+}
+
 onMounted(async () => {
   if (auth.storeId) {
     const { count, error } = await supabase
@@ -89,6 +104,8 @@ onMounted(async () => {
       .select('id', { count: 'exact', head: true })
       .eq('store_id', auth.storeId)
     if (!error) productCount.value = count || 0
+  } else {
+    loadPendingStore()
   }
   loading.value = false
 })
@@ -108,7 +125,11 @@ async function createStore() {
       p_logo_path: null,
     })
     if (error) {
-      toast.error(error.message || 'No se pudo crear la tienda')
+      if (error.code === '23505' || /slug/i.test(error.message || '')) {
+        toast.error('Tu tienda ya fue registrada y está pendiente de verificación.')
+      } else {
+        toast.error(error.message || 'No se pudo crear la tienda')
+      }
       return
     }
     if (logoFile.value) {
