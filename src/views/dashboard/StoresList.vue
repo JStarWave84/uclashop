@@ -2,7 +2,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Store, ShieldCheck, ShieldOff, Eye, EyeOff } from '@lucide/vue'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Search, Store, ShieldCheck, ShieldOff, Eye, EyeOff, Trash2 } from '@lucide/vue'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'vue-sonner'
 import { storeLogoUrl } from '@/lib/storage'
@@ -10,6 +18,12 @@ import { storeLogoUrl } from '@/lib/storage'
 const stores = ref([])
 const search = ref('')
 const filter = ref('all')
+
+const deleteConfirmOpen = ref(false)
+const storeToDelete = ref(null)
+const deleting = ref(false)
+const pendingProductCount = ref(null)
+const pendingImagePaths = ref([])
 
 const filters = [
   { value: 'all', label: 'Todas' },
@@ -64,6 +78,55 @@ async function toggleActive(store) {
   }
   store.is_active = !store.is_active
   toast.success(store.is_active ? 'Tienda activada' : 'Tienda desactivada')
+}
+
+function openDeleteConfirm(store) {
+  storeToDelete.value = store
+  pendingProductCount.value = null
+  pendingImagePaths.value = []
+  deleteConfirmOpen.value = true
+
+  supabase
+    .from('products')
+    .select('product_image_path')
+    .eq('store_id', store.id)
+    .then(({ data }) => {
+      if (storeToDelete.value?.id !== store.id || !data) return
+      pendingImagePaths.value = data.map((p) => p.product_image_path).filter(Boolean)
+      pendingProductCount.value = data.length
+    })
+}
+
+async function confirmDelete() {
+  const store = storeToDelete.value
+  if (!store) return
+  deleting.value = true
+
+  try {
+    if (pendingImagePaths.value.length > 0) {
+      const { error: imgErr } = await supabase.storage.from('product-images').remove(pendingImagePaths.value)
+      if (imgErr) console.warn('productImagesCleanup', imgErr)
+    }
+    if (store.logo_path) {
+      const { error: logoErr } = await supabase.storage.from('store-logos').remove([store.logo_path])
+      if (logoErr) console.warn('storeLogoCleanup', logoErr)
+    }
+  } catch (err) {
+    console.warn('storageCleanup', err)
+  }
+
+  const { error } = await supabase.from('stores').delete().eq('id', store.id)
+  deleting.value = false
+
+  if (error) {
+    toast.error(error.message || 'No se pudo eliminar la tienda')
+    return
+  }
+
+  toast.success('Tienda eliminada')
+  deleteConfirmOpen.value = false
+  storeToDelete.value = null
+  await fetchStores()
 }
 </script>
 
@@ -155,9 +218,48 @@ async function toggleActive(store) {
               <EyeOff v-if="store.is_active" class="size-3.5 text-neutral-400" />
               <Eye v-else class="size-3.5" />
             </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              class="text-neutral-400 hover:text-red-500"
+              title="Eliminar tienda"
+              @click="openDeleteConfirm(store)"
+            >
+              <Trash2 class="size-3.5" />
+            </Button>
           </div>
         </div>
       </div>
     </div>
+
+    <Dialog v-model:open="deleteConfirmOpen">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Eliminar tienda</DialogTitle>
+          <DialogDescription>
+            ¿Eliminar "{{ storeToDelete?.name }}"? Esta acción no se puede deshacer.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+          <p v-if="pendingProductCount === null">Cargando información de productos...</p>
+          <template v-else>
+            <p>
+              Se eliminarán permanentemente
+              {{ pendingProductCount }} {{ pendingProductCount === 1 ? 'producto' : 'productos' }}
+              y sus imágenes.
+            </p>
+            <p class="mt-1">El historial de órdenes se conservará.</p>
+          </template>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" @click="deleteConfirmOpen = false">Cancelar</Button>
+          <Button variant="destructive" :disabled="deleting" @click="confirmDelete">
+            {{ deleting ? 'Eliminando...' : 'Eliminar' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
