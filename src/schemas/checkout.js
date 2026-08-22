@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { sanitize } from '@/lib/utils'
 
+const COMMON_EMAIL = /(@(gmail|hotmail|outlook|yahoo|icloud)\.(com|es)|\.edu(\.ve)?)$/i
+
 export const checkoutSchema = z.object({
   first_name: z
     .string()
@@ -16,10 +18,14 @@ export const checkoutSchema = z.object({
   phone: z.string().regex(/^\d{4}-\d{7}$/, 'Formato: 0412-1234567'),
   email: z
     .string()
-    .min(1, 'Ingresá tu correo')
+    .min(1, 'Ingresa tu correo')
     .email('Correo inválido')
-    .max(200)
-    .transform((s) => sanitize(s)),
+    .max(254)
+    .refine(
+      (s) => COMMON_EMAIL.test(s),
+      'Usa un correo de Gmail, Hotmail, Outlook, Yahoo, iCloud o institucional (.edu)'
+    )
+    .transform((s) => sanitize(s).toLowerCase()),
   payment_reference: z.string().min(1, 'Ingresá la referencia').regex(/^\d+$/, 'Solo números'),
 })
 
