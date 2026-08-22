@@ -75,20 +75,29 @@ function addToCart() {
   quantity.value = 1
 }
 
+const LOW_STOCK_THRESHOLD = 5
+
 const stockLabel = computed(() => {
-  if (!product.value) return ''
-  if (product.value.stock > 10) return 'Disponible'
-  if (product.value.stock > 0) return `Quedan ${product.value.stock}`
-  if (product.value.allow_backorder) return 'Acepta backorder'
+  const p = product.value
+  if (!p) return ''
+  if (p.stock > LOW_STOCK_THRESHOLD) return `Disponible: ${p.stock}`
+  if (p.stock > 0) return `Por agotarse: ${p.stock}`
+  if (p.allow_backorder) return 'Acepta backorder'
   return 'Agotado'
 })
 
 const stockVariant = computed(() => {
-  if (!product.value) return ''
-  if (product.value.stock > 0) return 'text-emerald-600 bg-emerald-50'
-  if (product.value.allow_backorder) return 'text-ucla-gold bg-ucla-gold/10'
+  const p = product.value
+  if (!p) return ''
+  if (p.stock > LOW_STOCK_THRESHOLD) return 'text-emerald-600 bg-emerald-50'
+  if (p.stock > 0) return 'text-amber-600 bg-amber-50'
+  if (p.allow_backorder) return 'text-ucla-gold bg-ucla-gold/10'
   return 'text-red-500 bg-red-50'
 })
+
+const canAddToCart = computed(
+  () => !!product.value && (product.value.stock > 0 || product.value.allow_backorder)
+)
 </script>
 
 <template>
@@ -168,11 +177,14 @@ const stockVariant = computed(() => {
           {{ formatPrice(product.price) }}
         </span>
 
-        <div class="flex items-center gap-3 rounded-xl border border-ucla-100 p-1">
+        <div
+          class="flex items-center gap-3 rounded-xl border border-ucla-100 p-1"
+          :class="{ 'pointer-events-none opacity-50': !canAddToCart }"
+        >
           <Button
             variant="ghost"
             size="icon"
-            :disabled="quantity <= 1"
+            :disabled="!canAddToCart || quantity <= 1"
             @click="quantity > 1 && quantity--"
             aria-label="Reducir cantidad"
           >
@@ -184,7 +196,7 @@ const stockVariant = computed(() => {
           <Button
             variant="ghost"
             size="icon"
-            :disabled="quantity >= 99"
+            :disabled="!canAddToCart || quantity >= 99"
             @click="quantity < 99 && quantity++"
             aria-label="Aumentar cantidad"
           >
@@ -192,9 +204,14 @@ const stockVariant = computed(() => {
           </Button>
         </div>
 
-        <Button size="lg" class="w-full sm:w-auto" @click="addToCart">
+        <Button
+          size="lg"
+          class="w-full sm:w-auto"
+          :disabled="!canAddToCart"
+          @click="addToCart"
+        >
           <ShoppingCart class="size-4" />
-          Agregar al carrito
+          {{ canAddToCart ? 'Agregar al carrito' : 'Producto agotado' }}
         </Button>
       </div>
     </div>
