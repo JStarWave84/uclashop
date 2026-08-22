@@ -73,6 +73,15 @@ export const useCartStore = defineStore(
           )
           return false
         }
+        if (!newIsJornada) {
+          const cartStoreId = items.value[0].store_id
+          if (product.store_id && cartStoreId && product.store_id !== cartStoreId) {
+            toast.error(
+              'Tu carrito tiene productos de otra tienda. Elimina los productos del carrito para comprar en otra tienda.'
+            )
+            return false
+          }
+        }
       }
 
       const existing = items.value.find((i) => i.id === product.id)
@@ -102,6 +111,7 @@ export const useCartStore = defineStore(
     const totalPrice = computed(() =>
       items.value.reduce((s, i) => s + (i.quantity || 0) * (i.price || 0), 0)
     )
+    const cartStore = computed(() => items.value[0]?.store ?? null)
 
     return {
       items,
@@ -111,6 +121,7 @@ export const useCartStore = defineStore(
       loadJornadaProducts,
       isJornadaProduct,
       isJornadaCart,
+      cartStore,
       addItem,
       removeItem,
       updateQty,

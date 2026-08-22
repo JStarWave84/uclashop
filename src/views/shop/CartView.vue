@@ -47,6 +47,13 @@ function buyOnWhatsApp(phone, items, total) {
     <template v-else>
       <div class="mt-8 grid gap-8 lg:grid-cols-5">
         <div class="lg:col-span-3">
+          <p
+            v-if="!cart.isJornadaCart && cart.cartStore"
+            class="mb-2 flex items-center gap-1.5 text-xs font-medium text-ucla-900/50"
+          >
+            <Store class="size-3.5 shrink-0 text-ucla-600" />
+            Productos de {{ cart.cartStore.name }}
+          </p>
           <div class="divide-y divide-ucla-100">
             <CartItemRow v-for="item in cart.items" :key="item.id" :item="item" />
           </div>

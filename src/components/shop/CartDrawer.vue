@@ -3,7 +3,7 @@ import { onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { ShoppingCart, MessageCircle, ArrowRight } from '@lucide/vue'
+import { ShoppingCart, MessageCircle, ArrowRight, Store } from '@lucide/vue'
 import { useCartStore } from '@/stores/cart'
 import { formatPrice } from '@/lib/utils'
 import { groupCartByStore, buildCartMessage, buildWhatsAppUrl } from '@/lib/whatsapp'
@@ -65,6 +65,13 @@ function buyOnWhatsApp(phone, items, total) {
       </div>
 
       <div v-else class="flex-1 overflow-y-auto px-4">
+        <p
+          v-if="!cart.isJornadaCart && cart.cartStore"
+          class="flex items-center gap-1.5 border-b border-ucla-100 py-2 text-xs font-medium text-ucla-900/50"
+        >
+          <Store class="size-3.5 shrink-0 text-ucla-600" />
+          Productos de {{ cart.cartStore.name }}
+        </p>
         <CartItemRow v-for="item in cart.items" :key="item.id" :item="item" compact />
       </div>
 
