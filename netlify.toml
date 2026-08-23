@@ -18,3 +18,13 @@
 [[edge_functions]]
   path = "/productos/*"
   function = "store-og"
+
+# Dynamic robots.txt (Sitemap URL resolved from the request origin)
+[[edge_functions]]
+  path = "/robots.txt"
+  function = "robots"
+
+# Dynamic sitemap.xml: static routes + active products + verified stores
+[[edge_functions]]
+  path = "/sitemap.xml"
+  function = "sitemap"
