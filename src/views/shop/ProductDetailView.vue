@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, RouterLink } from 'vue-router'
 import { useHead } from '@unhead/vue'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -353,7 +353,7 @@ const canAddToCart = computed(() => {
 
     <div v-else class="mt-16 text-center">
       <p class="text-sm text-ucla-900/40">Producto no encontrado</p>
-      <Button variant="outline" class="mt-4" as="router-link" to="/productos">
+      <Button variant="outline" class="mt-4" :as="RouterLink" to="/productos">
         <ArrowLeft class="size-4" />
         Ver catálogo
       </Button>

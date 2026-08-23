@@ -174,6 +174,13 @@ const routes = [
         name: 'order-confirmation',
         component: () => import('@/views/shop/OrderConfirmationView.vue'),
       },
+
+      // ── 404 catch-all (keeps the shop layout for navigation) ──
+      {
+        path: '/:pathMatch(.*)*',
+        name: 'not-found',
+        component: () => import('@/views/shop/NotFoundView.vue'),
+      },
     ],
   },
 ]

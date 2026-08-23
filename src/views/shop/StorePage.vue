@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, RouterLink } from 'vue-router'
 import { useHead } from '@unhead/vue'
 import { ArrowLeft, Store, MessageCircle, Package, AlertCircle } from '@lucide/vue'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -123,7 +123,7 @@ const waUrl = computed(() => {
     <div v-else-if="!store" class="mt-16 text-center">
       <AlertCircle class="mx-auto size-10 text-ucla-900/20" />
       <p class="mt-3 text-sm text-ucla-900/40">Tienda no encontrada</p>
-      <Button variant="outline" class="mt-4" as="router-link" to="/tiendas">
+      <Button variant="outline" class="mt-4" :as="RouterLink" to="/tiendas">
         Ver tiendas
       </Button>
     </div>
