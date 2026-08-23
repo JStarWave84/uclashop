@@ -181,7 +181,15 @@ function copy(text) {
         </thead>
         <tbody class="divide-y divide-neutral-50">
           <tr v-for="item in items" :key="item.id">
-            <td class="py-2 font-medium text-neutral-900">{{ item.product_name_snapshot }}</td>
+            <td class="py-2 font-medium text-neutral-900">
+              {{ item.product_name_snapshot }}
+              <span
+                v-if="item.variant_attributes_snapshot && Object.keys(item.variant_attributes_snapshot).length"
+                class="block text-xs font-normal text-ucla-600"
+              >
+                {{ Object.entries(item.variant_attributes_snapshot).map(([k, v]) => `${k} ${v}`).join(' · ') }}
+              </span>
+            </td>
             <td class="py-2 text-neutral-600 tabular-nums">
               <PriceDisplay :price="item.price_snapshot" />
             </td>

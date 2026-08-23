@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, computed } from 'vue'
 import { Button } from '@/components/ui/button'
-import { useCartStore } from '@/stores/cart'
+import { useCartStore, cartItemKey } from '@/stores/cart'
 import { ShoppingCart, MessageCircle, ArrowRight, Store } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import CartItemRow from '@/components/shop/CartItemRow.vue'
@@ -55,7 +55,7 @@ function buyOnWhatsApp(phone, items, total) {
             Productos de {{ cart.cartStore.name }}
           </p>
           <div class="divide-y divide-ucla-100">
-            <CartItemRow v-for="item in cart.items" :key="item.id" :item="item" />
+            <CartItemRow v-for="item in cart.items" :key="cartItemKey(item)" :item="item" />
           </div>
         </div>
 

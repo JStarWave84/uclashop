@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { ShoppingCart, MessageCircle, ArrowRight, Store } from '@lucide/vue'
-import { useCartStore } from '@/stores/cart'
+import { useCartStore, cartItemKey } from '@/stores/cart'
 import { formatPrice } from '@/lib/utils'
 import { groupCartByStore, buildCartMessage, buildWhatsAppUrl } from '@/lib/whatsapp'
 import CartItemRow from './CartItemRow.vue'
@@ -72,7 +72,7 @@ function buyOnWhatsApp(phone, items, total) {
           <Store class="size-3.5 shrink-0 text-ucla-600" />
           Productos de {{ cart.cartStore.name }}
         </p>
-        <CartItemRow v-for="item in cart.items" :key="item.id" :item="item" compact />
+        <CartItemRow v-for="item in cart.items" :key="cartItemKey(item)" :item="item" compact />
       </div>
 
       <div v-if="cart.items.length > 0" class="border-t border-ucla-100 p-4">

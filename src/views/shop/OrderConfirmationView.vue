@@ -41,6 +41,12 @@ onMounted(async () => {
       name: i.product_name_snapshot,
       price: Number(i.price_snapshot),
       quantity: i.quantity,
+      variant_id: i.variant_id || null,
+      variant_label: i.variant_attributes_snapshot
+        ? Object.entries(i.variant_attributes_snapshot)
+            .map(([k, v]) => `${k} ${v}`)
+            .join(' · ')
+        : '',
       contact_phone: i.contact_phone || null,
     })),
   }
@@ -55,7 +61,10 @@ const customerName = computed(() => {
 const itemsList = computed(() => {
   if (!orderData.value) return ''
   return orderData.value.items
-    .map((i) => `• ${i.name} x${i.quantity} — ${formatPrice(i.price * i.quantity)}`)
+    .map((i) => {
+      const name = i.variant_label ? `${i.name} (${i.variant_label})` : i.name
+      return `• ${name} x${i.quantity} — ${formatPrice(i.price * i.quantity)}`
+    })
     .join('\n')
 })
 
@@ -144,9 +153,16 @@ function copyMessage() {
           Productos
         </h2>
         <ul class="mt-3 divide-y divide-ucla-100">
-          <li v-for="item in orderData.items" :key="item.name" class="flex justify-between py-2">
+          <li
+            v-for="(item, idx) in orderData.items"
+            :key="`${item.name}-${item.variant_id || idx}`"
+            class="flex justify-between py-2"
+          >
             <span class="text-sm text-ucla-900/70">
               {{ item.name }}
+              <span v-if="item.variant_label" class="block text-xs font-medium text-ucla-600">
+                {{ item.variant_label }}
+              </span>
               <span class="text-ucla-900/40">x{{ item.quantity }}</span>
             </span>
             <span class="text-sm font-medium text-ucla-700 tabular-nums">

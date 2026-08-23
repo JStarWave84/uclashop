@@ -30,6 +30,7 @@ onMounted(async () => {
 async function placeOrder(data) {
   const items = cart.items.map((i) => ({
     product_id: i.id,
+    variant_id: i.variant_id || null,
     quantity: i.quantity,
     product_name_snapshot: i.name,
     price_snapshot: i.price,

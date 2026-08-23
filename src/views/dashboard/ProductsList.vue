@@ -41,7 +41,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import PriceDisplay from '@/components/shared/PriceDisplay.vue'
-import { validateProduct } from '@/schemas/product'
+import VariantEditor from '@/components/shared/VariantEditor.vue'
+import { validateProduct, validateVariants } from '@/schemas/product'
 import { useAuthStore } from '@/stores/auth'
 
 const LOW_STOCK = 5
@@ -64,7 +65,11 @@ const form = ref({
   is_active: true,
   store_id: '',
   payment_account_ids: [],
+  use_variants: false,
 })
+
+const variantRows = ref([])
+const variantErrors = ref({})
 
 const imageInput = ref(null)
 const imageFile = ref(null)
@@ -113,7 +118,7 @@ function productImageUrl(path) {
 async function fetchProducts() {
   const { data, error } = await supabase
     .from('products')
-    .select('*, stores(name)')
+    .select('*, stores(name), product_variants(count)')
     .order('created_at', { ascending: false })
   if (error) {
     console.error('fetchProducts', error)
@@ -125,6 +130,7 @@ async function fetchProducts() {
     ...p,
     store_name: p.stores?.name || '',
     jornadas: [],
+    variants_count: p.product_variants?.[0]?.count ?? 0,
   }))
 
   const { data: ps, error: psErr } = await supabase
@@ -281,8 +287,11 @@ function resetForm() {
     is_active: true,
     store_id: auth.storeId || stores.value[0]?.id || '',
     payment_account_ids: [],
+    use_variants: false,
   }
   formErrors.value = {}
+  variantRows.value = []
+  variantErrors.value = {}
   imageFile.value = null
   imagePreview.value = null
 }
@@ -302,6 +311,21 @@ async function openEditDialog(product) {
     .eq('product_id', product.id)
   const linkedIds = (ppa || []).map((r) => r.payment_account_id)
 
+  let rows = []
+  if (product.has_variants) {
+    const { data } = await supabase
+      .from('product_variants')
+      .select('*')
+      .eq('product_id', product.id)
+      .order('created_at')
+    rows = (data || []).map((v) => ({
+      id: v.id,
+      attrs: Object.entries(v.attributes || {}).map(([k, val]) => ({ k, v: String(val) })),
+      price: v.price ?? '',
+      stock: v.stock ?? 0,
+    }))
+  }
+
   form.value = {
     name: product.name || '',
     description: product.description || '',
@@ -311,7 +335,10 @@ async function openEditDialog(product) {
     is_active: product.is_active ?? true,
     store_id: product.store_id || '',
     payment_account_ids: linkedIds,
+    use_variants: !!product.has_variants,
   }
+  variantRows.value = rows
+  variantErrors.value = {}
   formErrors.value = {}
   imageFile.value = null
   imagePreview.value = product.product_image_path ? productImageUrl(product.product_image_path) : null
@@ -384,7 +411,112 @@ async function syncPaymentAccounts(productId) {
   return true
 }
 
+function cleanVariantRows() {
+  return variantRows.value
+    .map((r) => {
+      const attributes = {}
+      for (const pair of r.attrs) {
+        const k = (pair.k || '').trim()
+        const v = (pair.v || '').trim()
+        if (k && v) attributes[k] = v
+      }
+      const price = r.price === '' || r.price === null ? null : Number(r.price)
+      return { id: r.id || null, attributes, price, stock: Number(r.stock) || 0 }
+    })
+    .filter((r) => Object.keys(r.attributes).length > 0)
+}
+
+function onToggleUseVariants(enabled) {
+  form.value.use_variants = enabled
+  if (enabled && variantRows.value.length === 0) {
+    variantRows.value = [{ id: null, attrs: [{ k: '', v: '' }], price: '', stock: 0 }]
+  }
+  if (!enabled) variantErrors.value = {}
+}
+
+async function syncVariants(productId) {
+  const desired = cleanVariantRows()
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from('product_variants')
+    .select('id')
+    .eq('product_id', productId)
+  if (fetchErr) {
+    console.error('syncVariants fetch', fetchErr)
+    toast.error('Error sincronizando variantes')
+    return false
+  }
+
+  const keepIds = new Set(desired.filter((d) => d.id).map((d) => d.id))
+  const toDelete = (existing || []).filter((e) => !keepIds.has(e.id)).map((e) => e.id)
+  if (toDelete.length > 0) {
+    const { error } = await supabase.from('product_variants').delete().in('id', toDelete)
+    if (error) {
+      console.error('syncVariants delete', error)
+      toast.error('Error eliminando variantes')
+      return false
+    }
+  }
+
+  for (const d of desired) {
+    const row = {
+      attributes: d.attributes,
+      price: d.price,
+      stock: d.stock,
+    }
+    if (d.id) {
+      const { error } = await supabase
+        .from('product_variants')
+        .update(row)
+        .eq('id', d.id)
+      if (error) {
+        console.error('syncVariants update', error)
+        toast.error('Error actualizando variantes')
+        return false
+      }
+    } else {
+      const { error } = await supabase
+        .from('product_variants')
+        .insert({ ...row, product_id: productId })
+      if (error) {
+        console.error('syncVariants insert', error)
+        toast.error('Error creando variantes')
+        return false
+      }
+    }
+  }
+
+  return true
+}
+
 async function handleSave() {
+  if (form.value.use_variants) {
+    const cleaned = cleanVariantRows()
+    if (cleaned.length === 0) {
+      variantErrors.value = {}
+      toast.error('Agregá al menos una variante con sus atributos')
+      return
+    }
+    const check = validateVariants(
+      variantRows.value
+        .map((r) => ({
+          attributes: Object.fromEntries(
+            r.attrs.filter((p) => p.k.trim() && p.v.trim()).map((p) => [p.k.trim(), p.v.trim()])
+          ),
+          price: r.price,
+          stock: r.stock,
+        }))
+        .filter((v) => Object.keys(v.attributes).length > 0)
+    )
+    if (!check.valid) {
+      variantErrors.value = check.errors
+      toast.error('Revisá las variantes marcadas')
+      return
+    }
+  } else {
+    variantErrors.value = {}
+  }
+
   const { valid, errors, data } = validateProduct(form.value)
   if (!valid) {
     formErrors.value = errors
@@ -399,11 +531,13 @@ async function handleSave() {
       name: data.name,
       description: data.description,
       price: data.price,
-      stock: data.stock,
       allow_backorder: data.allow_backorder,
       is_active: data.is_active,
+      has_variants: form.value.use_variants,
       store_id: form.value.store_id,
     }
+    // Con variantes el stock lo administra el trigger de sincronización.
+    if (!form.value.use_variants) payload.stock = data.stock
 
     if (editingProduct.value) {
       const updates = { ...payload }
@@ -428,6 +562,7 @@ async function handleSave() {
         return
       }
       toast.success('Producto actualizado')
+      if (form.value.use_variants && !(await syncVariants(editingProduct.value.id))) return
       await syncPaymentAccounts(editingProduct.value.id)
     } else {
       const { data: inserted, error } = await supabase
@@ -444,6 +579,7 @@ async function handleSave() {
         const path = await uploadImage(inserted.id)
         await supabase.from('products').update({ product_image_path: path }).eq('id', inserted.id)
       }
+      if (form.value.use_variants && !(await syncVariants(inserted.id))) return
       await syncPaymentAccounts(inserted.id)
       toast.success('Producto creado')
     }
@@ -788,6 +924,14 @@ async function confirmDelete() {
                 {{ product.stock }}
               </span>
               <span
+                v-if="product.has_variants"
+                class="ml-1.5 rounded-full bg-ucla-50 px-2 py-0.5 text-[10px] font-medium text-ucla-600"
+                :title="`Stock total entre ${product.variants_count} variantes`"
+              >
+                {{ product.variants_count }}
+                {{ product.variants_count === 1 ? 'variante' : 'variantes' }}
+              </span>
+              <span
                 v-if="stockMeta(product).badge"
                 class="ml-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium"
                 :class="stockMeta(product).badgeCls"
@@ -922,6 +1066,13 @@ async function confirmDelete() {
               </span>
               <span class="tabular-nums" :class="stockMeta(product).numCls">
                 Stock: {{ product.stock }}
+              </span>
+              <span
+                v-if="product.has_variants"
+                class="rounded-full bg-ucla-50 px-2 py-0.5 text-[10px] font-medium text-ucla-600"
+              >
+                {{ product.variants_count }}
+                {{ product.variants_count === 1 ? 'variante' : 'variantes' }}
               </span>
               <span
                 v-if="stockMeta(product).badge"
@@ -1137,10 +1288,34 @@ async function confirmDelete() {
               type="number"
               min="0"
               placeholder="0"
+              :disabled="form.use_variants"
+              :title="form.use_variants ? 'El stock se administra por variante' : ''"
               :class="formErrors.stock ? 'border-red-400 focus-visible:ring-red-500/30' : ''"
             />
             <p v-if="formErrors.stock" class="text-xs text-red-500">{{ formErrors.stock }}</p>
           </div>
+        </div>
+
+        <div class="rounded-lg border border-neutral-200 p-3">
+          <label class="flex items-center gap-2 text-sm">
+            <input
+              :checked="form.use_variants"
+              type="checkbox"
+              class="size-4 rounded border-neutral-300 text-ucla-600 focus:ring-ucla-500"
+              @change="onToggleUseVariants($event.target.checked)"
+            />
+            Producto con variantes (color, talla, etc.)
+          </label>
+          <p v-if="form.use_variants" class="mt-1 text-xs text-neutral-400">
+            El stock total se calcula sumando las variantes. Cada variante puede tener precio
+            propio (si lo dejás vacío usa el precio base).
+          </p>
+          <VariantEditor
+            v-if="form.use_variants"
+            v-model="variantRows"
+            :errors="variantErrors"
+            class="mt-3"
+          />
         </div>
 
         <div class="grid gap-2">

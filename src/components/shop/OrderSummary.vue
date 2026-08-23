@@ -1,5 +1,6 @@
 <script setup>
 import { formatPrice } from '@/lib/utils'
+import { cartItemKey, variantLabel } from '@/stores/cart'
 
 defineProps({
   items: { type: Array, required: true },
@@ -13,9 +14,12 @@ defineProps({
     <h2 v-if="showHeader" class="text-sm font-semibold text-ucla-900">Resumen del pedido</h2>
 
     <ul class="divide-y divide-ucla-100" :class="{ 'mt-4': showHeader }">
-      <li v-for="item in items" :key="item.id" class="flex justify-between py-2">
+      <li v-for="item in items" :key="cartItemKey(item)" class="flex justify-between py-2">
         <span class="text-sm text-ucla-900/70">
           {{ item.name }}
+          <span v-if="variantLabel(item.variant_attributes)" class="block text-xs font-medium text-ucla-600">
+            {{ variantLabel(item.variant_attributes) }}
+          </span>
           <span class="text-ucla-900/40">x{{ item.quantity }}</span>
         </span>
         <span class="text-sm font-medium text-ucla-700 tabular-nums">

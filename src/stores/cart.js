@@ -3,6 +3,17 @@ import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'vue-sonner'
 
+export function cartItemKey(item) {
+  return item.variant_id ? `${item.id}:${item.variant_id}` : `${item.id}`
+}
+
+export function variantLabel(attributes) {
+  if (!attributes) return ''
+  const entries = Object.entries(attributes)
+  if (!entries.length) return ''
+  return entries.map(([k, v]) => `${k} ${v}`).join(' · ')
+}
+
 export const useCartStore = defineStore(
   'cart',
   () => {
@@ -57,7 +68,7 @@ export const useCartStore = defineStore(
       drawerOpen.value = !drawerOpen.value
     }
 
-    async function addItem(product, qty = 1) {
+    async function addItem(product, qty = 1, variant = null) {
       if (!product || !product.id) {
         // ignore invalid
         return false
@@ -84,22 +95,33 @@ export const useCartStore = defineStore(
         }
       }
 
-      const existing = items.value.find((i) => i.id === product.id)
+      const effectivePrice = variant
+        ? (variant.price ?? product.price)
+        : product.price
+      const key = variant ? `${product.id}:${variant.id}` : `${product.id}`
+
+      const existing = items.value.find((i) => cartItemKey(i) === key)
       if (existing) {
         existing.quantity += qty
       } else {
-        items.value.push({ ...product, quantity: qty })
+        items.value.push({
+          ...product,
+          price: effectivePrice,
+          quantity: qty,
+          variant_id: variant?.id ?? null,
+          variant_attributes: variant?.attributes ?? null,
+        })
       }
       openDrawer()
       return true
     }
 
-    function removeItem(id) {
-      items.value = items.value.filter((i) => i.id !== id)
+    function removeItem(key) {
+      items.value = items.value.filter((i) => cartItemKey(i) !== String(key))
     }
 
-    function updateQty(id, qty) {
-      const it = items.value.find((i) => i.id === id)
+    function updateQty(key, qty) {
+      const it = items.value.find((i) => cartItemKey(i) === String(key))
       if (it) it.quantity = qty
     }
 

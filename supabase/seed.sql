@@ -5,24 +5,61 @@
 
 BEGIN;
 
--- Insert a payment account (Pago móvil) for the product
+-- Ensure the demo store exists (same as marketplace migration seed)
+INSERT INTO public.stores (name, slug, description, phone, is_verified, is_active, created_by, created_at)
+SELECT
+  'Tienda de la UCLA',
+  'tienda-de-la-ucla',
+  'Productos oficiales del Centro de Estudiantes de la Universidad Centroccidental Lisandro Alvarado.',
+  NULL,
+  true,
+  true,
+  NULL,
+  now()
+WHERE NOT EXISTS (SELECT 1 FROM public.stores WHERE slug = 'tienda-de-la-ucla');
+
+-- Insert a payment account (Pago móvil) for the products
 WITH pay_acc AS (
   INSERT INTO public.payment_accounts (id, name, holder_name, bank, phone, ci, account_type, is_active, created_at)
   VALUES (gen_random_uuid(), 'PagoMóvil - BancoX', 'Colectivo UCL', 'BancoX', '+58 4120000000', 'J-00000000', 'institucional', true, now())
   RETURNING id
 ),
 
--- Insert product
+-- Insert simple product (flat stock, no variants)
 prod AS (
-  INSERT INTO public.products (id, name, description, price, stock, allow_backorder, is_active, created_at)
-  VALUES (gen_random_uuid(), 'Camiseta UCL', 'Camiseta oficial - talla M', 25.00, 5, true, true, now())
+  INSERT INTO public.products (id, name, description, price, stock, allow_backorder, is_active, store_id, created_at)
+  SELECT gen_random_uuid(), 'Camiseta UCL', 'Camiseta oficial - talla M', 25.00, 5, true, true, s.id, now()
+  FROM public.stores s WHERE s.slug = 'tienda-de-la-ucla'
   RETURNING id, name, price
 ),
 
--- Link product to payment account (primary)
+-- Insert product WITH variants (color x talla)
+vprod AS (
+  INSERT INTO public.products (id, name, description, price, stock, allow_backorder, is_active, has_variants, store_id, created_at)
+  SELECT gen_random_uuid(), 'Buso UCLA', 'Buso oficial con capota. Disponible en varios colores y tallas.', 40.00, 0, false, true, false, s.id, now()
+  FROM public.stores s WHERE s.slug = 'tienda-de-la-ucla'
+  RETURNING id, name, price
+),
+
+-- Variants for vprod: attributes + per-variant stock.
+-- products.has_variants / products.stock are synced by trg_product_variants_sync_stock.
+variants AS (
+  INSERT INTO public.product_variants (product_id, attributes, price, stock, is_active)
+  SELECT vprod.id, '{"Color": "Negro", "Talla": "M"}'::jsonb, NULL, 10, true FROM vprod
+  UNION ALL
+  SELECT vprod.id, '{"Color": "Negro", "Talla": "L"}'::jsonb, 42.00, 8, true FROM vprod
+  UNION ALL
+  SELECT vprod.id, '{"Color": "Blanco", "Talla": "M"}'::jsonb, NULL, 6, true FROM vprod
+  UNION ALL
+  SELECT vprod.id, '{"Color": "Blanco", "Talla": "L"}'::jsonb, 42.00, 0, true FROM vprod
+  RETURNING id
+),
+
+-- Link products to payment account (primary)
 ppa AS (
   INSERT INTO public.product_payment_accounts (id, product_id, payment_account_id, is_primary, created_at)
-  SELECT gen_random_uuid(), prod.id, pay_acc.id, true, now() FROM prod, pay_acc
+  SELECT gen_random_uuid(), p.id, pay_acc.id, true, now() FROM pay_acc
+  CROSS JOIN (SELECT id FROM prod UNION SELECT id FROM vprod) p
   RETURNING id
 ),
 
@@ -33,7 +70,7 @@ session AS (
   RETURNING id
 ),
 
--- Make the product available in the session
+-- Make the simple product available in the session
 ps AS (
   INSERT INTO public.product_sessions (id, product_id, session_id, created_at)
   SELECT gen_random_uuid(), prod.id, session.id, now() FROM prod, session
@@ -66,6 +103,7 @@ order_item1 AS (
   SELECT
     'seed_completed' AS info,
     (SELECT id FROM prod) AS product_id,
+    (SELECT id FROM vprod) AS variant_product_id,
     (SELECT id FROM session) AS session_id,
     (SELECT id FROM pay_acc) AS payment_account_id,
     (SELECT id FROM order1) AS example_order_id,

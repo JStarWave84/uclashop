@@ -50,7 +50,13 @@ export function groupCartByStore(items) {
 export function buildCartMessage(items, total) {
   const lines = ['¡Hola! 😊 Quiero hacer este pedido:', '']
   for (const item of items) {
-    lines.push(`• ${item.name} x${item.quantity} — ${formatPrice(item.price * item.quantity)}`)
+    const attrs = item.variant_attributes
+      ? Object.entries(item.variant_attributes)
+          .map(([k, v]) => `${k} ${v}`)
+          .join(' · ')
+      : null
+    const name = attrs ? `${item.name} (${attrs})` : item.name
+    lines.push(`• ${name} x${item.quantity} — ${formatPrice(item.price * item.quantity)}`)
   }
   lines.push('', `Total: ${formatPrice(total)}`, '', '¿Me confirmas disponibilidad? ¡Gracias!')
   return lines.join('\n')

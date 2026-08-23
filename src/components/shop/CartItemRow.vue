@@ -1,6 +1,7 @@
 <script setup>
+import { computed } from 'vue'
 import { Button } from '@/components/ui/button'
-import { useCartStore } from '@/stores/cart'
+import { useCartStore, cartItemKey, variantLabel } from '@/stores/cart'
 import { Minus, Plus, Trash2 } from '@lucide/vue'
 import { formatPrice } from '@/lib/utils'
 
@@ -10,6 +11,9 @@ const props = defineProps({
 })
 
 const cart = useCartStore()
+
+const key = computed(() => cartItemKey(props.item))
+const label = computed(() => variantLabel(props.item.variant_attributes))
 </script>
 
 <template>
@@ -25,6 +29,7 @@ const cart = useCartStore()
       <p class="truncate text-sm font-medium text-ucla-900">
         {{ item.name }}
       </p>
+      <p v-if="label" class="text-xs font-medium text-ucla-600">{{ label }}</p>
       <p v-if="compact" class="text-xs text-ucla-900/40">{{ formatPrice(item.price) }} c/u</p>
       <p v-else class="mt-0.5 text-xs text-ucla-900/40">{{ formatPrice(item.price) }} c/u</p>
     </div>
@@ -34,7 +39,7 @@ const cart = useCartStore()
         variant="ghost"
         size="icon-sm"
         :disabled="item.quantity <= 1"
-        @click="cart.updateQty(item.id, item.quantity - 1)"
+        @click="cart.updateQty(key, item.quantity - 1)"
         aria-label="Reducir cantidad"
       >
         <Minus class="size-3" />
@@ -46,7 +51,7 @@ const cart = useCartStore()
         variant="ghost"
         size="icon-sm"
         :disabled="item.quantity >= 99"
-        @click="cart.updateQty(item.id, item.quantity + 1)"
+        @click="cart.updateQty(key, item.quantity + 1)"
         aria-label="Aumentar cantidad"
       >
         <Plus class="size-3" />
@@ -64,7 +69,7 @@ const cart = useCartStore()
       variant="ghost"
       size="icon"
       class="shrink-0 text-ucla-900/20 transition-colors hover:text-red-400"
-      @click="cart.removeItem(item.id)"
+      @click="cart.removeItem(key)"
       aria-label="Eliminar producto"
     >
       <Trash2 class="size-3.5" />
