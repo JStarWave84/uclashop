@@ -64,7 +64,8 @@ onMounted(async () => {
   loading.value = false
 })
 
-function formatDateRange(start, end) {
+function formatDateRange(start, end, isUnlimited) {
+  if (isUnlimited) return 'Disponible hasta nuevo aviso'
   const opts = { day: 'numeric', month: 'long', year: 'numeric' }
   return `${new Date(start).toLocaleDateString('es-ES', opts)} al ${new Date(end).toLocaleDateString('es-ES', opts)}`
 }
@@ -120,7 +121,7 @@ function goTo(path) {
 
         <p class="mt-2 inline-flex items-center gap-1.5 text-sm text-ucla-900/60">
           <Calendar class="size-4" />
-          {{ formatDateRange(session?.start_date, session?.end_date) }}
+          {{ formatDateRange(session?.start_date, session?.end_date, session?.is_unlimited) }}
         </p>
 
         <p class="mt-1 text-sm text-ucla-900/50">

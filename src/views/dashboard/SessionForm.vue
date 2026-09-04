@@ -18,6 +18,7 @@ const form = ref({
   start_date: '',
   end_date: '',
   is_open: true,
+  is_unlimited: false,
   product_ids: [],
 })
 
@@ -45,6 +46,7 @@ onMounted(async () => {
         start_date: data.start_date?.slice(0, 10) || '',
         end_date: data.end_date?.slice(0, 10) || '',
         is_open: data.is_open,
+        is_unlimited: data.is_unlimited ?? false,
         product_ids: [],
       }
       // load product_sessions
@@ -72,9 +74,10 @@ async function handleSave() {
         .from('sales_sessions')
         .update({
           name: form.value.name,
-          start_date: form.value.start_date,
-          end_date: form.value.end_date,
+          start_date: form.value.is_unlimited ? null : form.value.start_date,
+          end_date: form.value.is_unlimited ? null : form.value.end_date,
           is_open: form.value.is_open,
+          is_unlimited: form.value.is_unlimited,
         })
         .eq('id', form.value.id || route.params.id)
       if (error) {
@@ -104,9 +107,10 @@ async function handleSave() {
         .insert([
           {
             name: form.value.name,
-            start_date: form.value.start_date,
-            end_date: form.value.end_date,
+            start_date: form.value.is_unlimited ? null : form.value.start_date,
+            end_date: form.value.is_unlimited ? null : form.value.end_date,
             is_open: form.value.is_open,
+            is_unlimited: form.value.is_unlimited,
           },
         ])
         .select('id')
@@ -154,7 +158,16 @@ async function handleSave() {
         <Input v-model="form.name" type="text" placeholder="Ej: Jornada de julio" required />
       </div>
 
-      <div class="grid grid-cols-2 gap-4">
+      <label class="flex items-center gap-2">
+        <input
+          v-model="form.is_unlimited"
+          type="checkbox"
+          class="size-4 rounded border-neutral-300 text-ucla-600 focus:ring-ucla-500"
+        />
+        <span class="text-sm text-neutral-700">Tiempo ilimitado (sin fechas)</span>
+      </label>
+
+      <div v-if="!form.is_unlimited" class="grid grid-cols-2 gap-4">
         <div>
           <label class="mb-1.5 block text-xs font-medium text-neutral-600">Fecha inicio *</label>
           <Input v-model="form.start_date" type="date" required />

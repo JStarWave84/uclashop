@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { Menu, X } from '@lucide/vue'
+import { Menu, X, Store } from '@lucide/vue'
 import CartDrawer from '@/components/shop/CartDrawer.vue'
 
 const isMenuOpen = ref(false)
@@ -42,6 +42,14 @@ function closeMenu() {
       </nav>
 
       <div class="flex items-center gap-3">
+        <router-link
+          to="/tienda/login"
+          class="hidden items-center gap-1.5 rounded-lg border border-ucla-200 px-3 py-1.5 text-xs font-medium text-ucla-700 transition-colors hover:bg-ucla-50 hover:text-ucla-600 sm:inline-flex"
+        >
+          <Store class="size-3.5" />
+          Soy una tienda
+        </router-link>
+
         <CartDrawer />
 
         <button
@@ -73,6 +81,14 @@ function closeMenu() {
           @click="closeMenu"
         >
           {{ link.label }}
+        </router-link>
+        <router-link
+          to="/tienda/login"
+          class="mt-2 flex items-center gap-2 rounded-lg border border-ucla-200 px-3 py-2.5 text-sm font-medium text-ucla-700 transition-colors hover:bg-ucla-50"
+          @click="closeMenu"
+        >
+          <Store class="size-4" />
+          Soy una tienda
         </router-link>
       </nav>
     </Transition>

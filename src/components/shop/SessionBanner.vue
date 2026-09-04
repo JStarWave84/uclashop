@@ -7,7 +7,8 @@ const props = defineProps({
   productCount: { type: Number, default: 0 },
 })
 
-function formatDateRange(start, end) {
+function formatDateRange(start, end, isUnlimited) {
+  if (isUnlimited) return 'Disponible hasta nuevo aviso'
   const opts = { day: 'numeric', month: 'long', year: 'numeric' }
   const s = new Date(start).toLocaleDateString('es-ES', opts)
   const e = new Date(end).toLocaleDateString('es-ES', opts)
@@ -34,7 +35,7 @@ function formatDateRange(start, end) {
       </h1>
 
       <p class="mt-3 text-sm text-ucla-900/60 sm:text-base">
-        {{ formatDateRange(session.start_date, session.end_date) }}
+        {{ formatDateRange(session.start_date, session.end_date, session.is_unlimited) }}
       </p>
 
       <p class="mt-1 text-sm text-ucla-900/50">

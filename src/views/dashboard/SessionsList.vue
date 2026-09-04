@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Pencil, Search } from '@lucide/vue'
+import { Plus, Pencil, Trash2, Search } from '@lucide/vue'
 import { statusColors, statusLabels } from '@/lib/mock'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'vue-sonner'
@@ -25,13 +25,16 @@ const products = ref([])
 const search = ref('')
 const dialogOpen = ref(false)
 const saving = ref(false)
+const deleting = ref(false)
 const editingSession = ref(null)
+const deleteTarget = ref(null)
 
 const form = ref({
   name: '',
   start_date: '',
   end_date: '',
   is_open: true,
+  is_unlimited: false,
   product_ids: [],
 })
 
@@ -53,7 +56,8 @@ async function fetchSessions() {
   const { data, error } = await supabase
     .from('sales_sessions')
     .select('*')
-    .order('start_date', { ascending: false })
+    .order('is_unlimited', { ascending: false })
+    .order('start_date', { ascending: false, nullsFirst: false })
   if (error) {
     console.error('fetchSessions', error)
     toast.error('Error cargando jornadas')
@@ -102,7 +106,7 @@ async function openNewDialog() {
   products.value = (prods || []).map((p) => ({ ...p, store_name: p.stores?.name || '' }))
 
   editingSession.value = null
-  form.value = { name: '', start_date: '', end_date: '', is_open: true, product_ids: [] }
+  form.value = { name: '', start_date: '', end_date: '', is_open: true, is_unlimited: false, product_ids: [] }
   dialogOpen.value = true
 }
 
@@ -122,6 +126,7 @@ async function openEditDialog(session) {
     start_date: session.start_date?.slice(0, 10) || '',
     end_date: session.end_date?.slice(0, 10) || '',
     is_open: session.is_open ?? true,
+    is_unlimited: session.is_unlimited ?? false,
     product_ids: [],
   }
 
@@ -155,9 +160,10 @@ async function handleSave() {
         .from('sales_sessions')
         .update({
           name: form.value.name,
-          start_date: form.value.start_date,
-          end_date: form.value.end_date,
+          start_date: form.value.is_unlimited ? null : form.value.start_date,
+          end_date: form.value.is_unlimited ? null : form.value.end_date,
           is_open: form.value.is_open,
+          is_unlimited: form.value.is_unlimited,
         })
         .eq('id', editingSession.value.id)
       if (error) {
@@ -178,9 +184,10 @@ async function handleSave() {
         .insert([
           {
             name: form.value.name,
-            start_date: form.value.start_date,
-            end_date: form.value.end_date,
+            start_date: form.value.is_unlimited ? null : form.value.start_date,
+            end_date: form.value.is_unlimited ? null : form.value.end_date,
             is_open: form.value.is_open,
+            is_unlimited: form.value.is_unlimited,
           },
         ])
         .select('id')
@@ -204,6 +211,38 @@ async function handleSave() {
     toast.error('Error inesperado')
   } finally {
     saving.value = false
+  }
+}
+
+function confirmDelete(session) {
+  if (session.is_open) {
+    toast.error('Cerrá la jornada antes de eliminarla')
+    return
+  }
+  deleteTarget.value = session
+}
+
+async function handleDelete() {
+  if (!deleteTarget.value) return
+  deleting.value = true
+  try {
+    const { error } = await supabase
+      .from('sales_sessions')
+      .delete()
+      .eq('id', deleteTarget.value.id)
+    if (error) {
+      toast.error('Error eliminando jornada')
+      console.error(error)
+      return
+    }
+    toast.success('Jornada eliminada')
+    deleteTarget.value = null
+    await fetchSessions()
+  } catch (e) {
+    console.error(e)
+    toast.error('Error inesperado')
+  } finally {
+    deleting.value = false
   }
 }
 </script>
@@ -253,12 +292,21 @@ async function handleSave() {
             class="transition-colors hover:bg-neutral-50/50"
           >
             <td class="px-4 py-3 font-medium text-neutral-900">{{ session.name }}</td>
-            <td class="px-4 py-3 text-neutral-600">
-              {{ new Date(session.start_date).toLocaleDateString('es-ES') }}
+            <td
+              v-if="session.is_unlimited"
+              class="px-4 py-3 text-sm italic text-neutral-500"
+              colspan="2"
+            >
+              Ilimitada
             </td>
-            <td class="px-4 py-3 text-neutral-600">
-              {{ new Date(session.end_date).toLocaleDateString('es-ES') }}
-            </td>
+            <template v-else>
+              <td class="px-4 py-3 text-neutral-600">
+                {{ new Date(session.start_date).toLocaleDateString('es-ES') }}
+              </td>
+              <td class="px-4 py-3 text-neutral-600">
+                {{ new Date(session.end_date).toLocaleDateString('es-ES') }}
+              </td>
+            </template>
             <td class="px-4 py-3">
               <span
                 class="rounded-full border px-2.5 py-0.5 text-[10px] font-medium"
@@ -269,13 +317,28 @@ async function handleSave() {
             </td>
             <td class="px-4 py-3 text-neutral-600">{{ session.product_count ?? '-' }}</td>
             <td class="px-4 py-3">
-              <button
-                class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ucla-600"
-                @click="openEditDialog(session)"
-                aria-label="Editar"
-              >
-                <Pencil class="size-4" />
-              </button>
+              <div class="flex items-center gap-1">
+                <button
+                  class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ucla-600"
+                  @click="openEditDialog(session)"
+                  aria-label="Editar"
+                >
+                  <Pencil class="size-4" />
+                </button>
+                <button
+                  class="rounded-md p-1.5 transition-colors"
+                  :class="
+                    session.is_open
+                      ? 'cursor-not-allowed text-neutral-200'
+                      : 'text-neutral-400 hover:bg-red-50 hover:text-red-600'
+                  "
+                  :title="session.is_open ? 'Cerrar la jornada antes de eliminar' : 'Eliminar'"
+                  @click="confirmDelete(session)"
+                  aria-label="Eliminar"
+                >
+                  <Trash2 class="size-4" />
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -292,9 +355,12 @@ async function handleSave() {
           <div class="min-w-0">
             <p class="font-medium text-neutral-900">{{ session.name }}</p>
             <p class="mt-1 text-xs text-neutral-500">
-              {{ new Date(session.start_date).toLocaleDateString('es-ES') }}
-              →
-              {{ new Date(session.end_date).toLocaleDateString('es-ES') }}
+              <template v-if="session.is_unlimited">Ilimitada</template>
+              <template v-else>
+                {{ new Date(session.start_date).toLocaleDateString('es-ES') }}
+                →
+                {{ new Date(session.end_date).toLocaleDateString('es-ES') }}
+              </template>
             </p>
           </div>
           <span
@@ -310,13 +376,28 @@ async function handleSave() {
             {{ session.product_count ?? '—' }}
             {{ session.product_count === 1 ? 'producto' : 'productos' }}
           </p>
-          <button
-            class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ucla-600"
-            @click="openEditDialog(session)"
-            aria-label="Editar"
-          >
-            <Pencil class="size-4" />
-          </button>
+          <div class="flex items-center gap-1">
+            <button
+              class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ucla-600"
+              @click="openEditDialog(session)"
+              aria-label="Editar"
+            >
+              <Pencil class="size-4" />
+            </button>
+            <button
+              class="rounded-md p-1.5 transition-colors"
+              :class="
+                session.is_open
+                  ? 'cursor-not-allowed text-neutral-200'
+                  : 'text-neutral-400 hover:bg-red-50 hover:text-red-600'
+              "
+              :title="session.is_open ? 'Cerrar la jornada antes de eliminar' : 'Eliminar'"
+              @click="confirmDelete(session)"
+              aria-label="Eliminar"
+            >
+              <Trash2 class="size-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -341,7 +422,16 @@ async function handleSave() {
           <Input id="sess-name" v-model="form.name" placeholder="Ej: Jornada de julio" required />
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <label class="flex items-center gap-2 text-sm">
+          <input
+            v-model="form.is_unlimited"
+            type="checkbox"
+            class="size-4 rounded border-neutral-300 text-ucla-600 focus:ring-ucla-500"
+          />
+          Tiempo ilimitado (sin fechas)
+        </label>
+
+        <div v-if="!form.is_unlimited" class="grid grid-cols-2 gap-4">
           <div class="grid gap-2">
             <Label for="sess-start">Fecha inicio *</Label>
             <Input id="sess-start" v-model="form.start_date" type="date" required />
@@ -405,6 +495,27 @@ async function handleSave() {
       <DialogFooter>
         <Button type="submit" form="session-form" :disabled="saving">
           {{ saving ? 'Guardando...' : editingSession ? 'Guardar cambios' : 'Crear jornada' }}
+        </Button>
+      </DialogFooter>
+    </DialogScrollContent>
+  </Dialog>
+
+  <Dialog :open="!!deleteTarget" @update:open="(v) => { if (!v) deleteTarget = null }">
+    <DialogScrollContent class="sm:max-w-sm">
+      <DialogHeader>
+        <DialogTitle>Eliminar jornada</DialogTitle>
+        <DialogDescription>
+          ¿Estás seguro de que querés eliminar la jornada
+          <strong class="text-neutral-900">{{ deleteTarget?.name }}</strong>?
+          Esta acción no se puede deshacer.
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button variant="outline" @click="deleteTarget = null" :disabled="deleting">
+          Cancelar
+        </Button>
+        <Button variant="destructive" @click="handleDelete" :disabled="deleting">
+          {{ deleting ? 'Eliminando...' : 'Eliminar' }}
         </Button>
       </DialogFooter>
     </DialogScrollContent>
