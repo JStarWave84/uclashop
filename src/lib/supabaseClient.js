@@ -17,3 +17,26 @@ export async function signIn(email, password) {
     return { data: null, error }
   }
 }
+
+export async function resetPasswordForEmail(email) {
+  if (!email) return { data: null, error: new Error('Email requerido') }
+  try {
+    const { origin } = window.location
+    const res = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${origin}/auth/reset-password`,
+    })
+    return res
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function updatePassword(newPassword) {
+  if (!newPassword) return { data: null, error: new Error('Contraseña requerida') }
+  try {
+    const res = await supabase.auth.updateUser({ password: newPassword })
+    return res
+  } catch (error) {
+    return { data: null, error }
+  }
+}

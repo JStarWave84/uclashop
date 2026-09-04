@@ -65,6 +65,12 @@ async function handleLogin() {
               Contraseña
             </label>
             <Input id="login-password" v-model="password" type="password" placeholder="••••••••" />
+            <router-link
+              to="/auth/forgot-password"
+              class="mt-1.5 block text-right text-xs text-ucla-600/70 underline-offset-2 hover:text-ucla-600 hover:underline"
+            >
+              ¿Olvidaste tu contraseña?
+            </router-link>
           </div>
         </div>
 

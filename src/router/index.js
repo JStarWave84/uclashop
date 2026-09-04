@@ -25,6 +25,18 @@ const routes = [
     meta: { guest: true },
     component: () => import('@/views/auth/StoreRegisterView.vue'),
   },
+  {
+    path: '/auth/forgot-password',
+    name: 'forgot-password',
+    meta: { guest: true },
+    component: () => import('@/views/auth/ForgotPasswordView.vue'),
+  },
+  {
+    path: '/auth/reset-password',
+    name: 'reset-password',
+    meta: { guest: true },
+    component: () => import('@/views/auth/ResetPasswordView.vue'),
+  },
 
   // ── Admin dashboard (DashboardLayout parent, admin only) ──
   {
