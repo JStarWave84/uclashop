@@ -32,6 +32,7 @@ const adminLinks = [
   { to: '/admin/cuentas-pago', icon: CreditCard, label: 'Cuentas de pago' },
   { to: '/admin/tiendas', icon: Store, label: 'Tiendas' },
   { to: '/admin/usuarios', icon: Users, label: 'Usuarios' },
+  { to: '/admin/ajustes', icon: Settings, label: 'Ajustes' },
 ]
 
 const storeLinks = [

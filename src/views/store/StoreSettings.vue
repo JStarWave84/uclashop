@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/auth'
 import { storeLogoUrl } from '@/lib/storage'
 import { optimizeLogoImage } from '@/lib/imageOptimize'
 import { formatVePhone } from '@/lib/utils'
+import ChangePasswordForm from '@/components/dashboard/ChangePasswordForm.vue'
 
 const auth = useAuthStore()
 
@@ -256,5 +257,7 @@ async function updateUserName() {
         </Button>
       </div>
     </form>
+
+    <ChangePasswordForm class="mt-6" />
   </div>
 </template>

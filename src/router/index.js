@@ -107,6 +107,11 @@ const routes = [
         name: 'admin-users',
         component: () => import('@/views/dashboard/AdminUsers.vue'),
       },
+      {
+        path: 'ajustes',
+        name: 'admin-settings',
+        component: () => import('@/views/dashboard/AdminSettings.vue'),
+      },
     ],
   },
 
