@@ -14,6 +14,11 @@ export const variantSchema = z.object({
     }),
   price: z.union([z.literal(''), z.null(), z.coerce.number().min(0, 'El precio no puede ser negativo')]).optional(),
   stock: z.coerce.number().int('El stock debe ser un número entero').min(0, 'El stock no puede ser negativo'),
+  stock_warehouse: z.coerce
+    .number()
+    .int('El depósito debe ser un número entero')
+    .min(0, 'El depósito no puede ser negativo')
+    .default(0),
   is_active: z.boolean().optional().default(true),
 })
 
@@ -31,6 +36,10 @@ export const productSchema = z.object({
     .transform((s) => sanitize(s ?? '')),
   price: z.coerce.number().positive('El precio debe ser mayor a 0'),
   stock: z.coerce.number().int('El stock debe ser un número entero').min(0, 'El stock no puede ser negativo'),
+  stock_warehouse: z.coerce
+    .number()
+    .int('El depósito debe ser un número entero')
+    .min(0, 'El depósito no puede ser negativo'),
   allow_backorder: z.boolean().optional().default(false),
   is_active: z.boolean().optional().default(true),
 })

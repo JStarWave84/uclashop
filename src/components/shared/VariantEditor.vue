@@ -19,7 +19,7 @@ function emitUpdate(rows) {
 function addVariant() {
   emitUpdate([
     ...props.modelValue,
-    { id: null, attrs: [{ k: '', v: '' }], price: '', stock: 0 },
+    { id: null, attrs: [{ k: '', v: '' }], price: '', stock: 0, stock_warehouse: 0 },
   ])
 }
 
@@ -124,7 +124,7 @@ function setField(rowIndex, field, value) {
         </button>
       </div>
 
-      <div class="mt-2 grid grid-cols-2 gap-2">
+      <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
         <div class="grid gap-1">
           <Label class="text-xs text-neutral-500">Precio (opcional)</Label>
           <Input
@@ -141,7 +141,7 @@ function setField(rowIndex, field, value) {
           <p v-if="errors[index]?.price" class="text-xs text-red-500">{{ errors[index].price }}</p>
         </div>
         <div class="grid gap-1">
-          <Label class="text-xs text-neutral-500">Stock</Label>
+          <Label class="text-xs text-neutral-500">Tienda</Label>
           <Input
             :model-value="variant.stock"
             :disabled="disabled"
@@ -154,7 +154,27 @@ function setField(rowIndex, field, value) {
           />
           <p v-if="errors[index]?.stock" class="text-xs text-red-500">{{ errors[index].stock }}</p>
         </div>
+        <div class="grid gap-1">
+          <Label class="text-xs text-neutral-500">Depósito</Label>
+          <Input
+            :model-value="variant.stock_warehouse"
+            :disabled="disabled"
+            type="number"
+            min="0"
+            placeholder="0"
+            class="h-8 text-xs"
+            :class="errors[index]?.stock_warehouse ? 'border-red-400' : ''"
+            @update:model-value="(v) => setField(index, 'stock_warehouse', v)"
+          />
+          <p v-if="errors[index]?.stock_warehouse" class="text-xs text-red-500">
+            {{ errors[index].stock_warehouse }}
+          </p>
+        </div>
       </div>
+
+      <p class="mt-1.5 text-[10px] text-neutral-400">
+        Tienda = stock vendible en la web. Depósito = existencias no disponibles hasta transferir.
+      </p>
 
       <p v-if="errors[index]?._" class="mt-1 text-xs text-red-500">{{ errors[index]._ }}</p>
     </div>

@@ -20,6 +20,7 @@ import {
   ChevronUp,
   ChevronDown,
   X,
+  ArrowLeftRight,
 } from '@lucide/vue'
 import { supabase } from '@/lib/supabaseClient'
 import { optimizeProductImage } from '@/lib/imageOptimize'
@@ -42,6 +43,7 @@ import {
 } from '@/components/ui/select'
 import PriceDisplay from '@/components/shared/PriceDisplay.vue'
 import VariantEditor from '@/components/shared/VariantEditor.vue'
+import StockTransferDialog from '@/components/shared/StockTransferDialog.vue'
 import { validateProduct, validateVariants } from '@/schemas/product'
 import { useAuthStore } from '@/stores/auth'
 
@@ -55,12 +57,15 @@ const dialogOpen = ref(false)
 const saving = ref(false)
 const editingProduct = ref(null)
 const formErrors = ref({})
+const transferOpen = ref(false)
+const transferProduct = ref(null)
 
 const form = ref({
   name: '',
   description: '',
   price: '',
   stock: 0,
+  stock_warehouse: 0,
   allow_backorder: false,
   is_active: true,
   store_id: '',
@@ -89,9 +94,11 @@ const pageSize = ref(10)
 
 const stockOptions = [
   { value: 'all', label: 'Todo el stock' },
-  { value: 'in_stock', label: 'Con stock' },
-  { value: 'low', label: `Stock bajo (≤ ${LOW_STOCK})` },
-  { value: 'out', label: 'Agotados' },
+  { value: 'in_stock', label: 'Con stock en tienda' },
+  { value: 'low', label: `Stock bajo en tienda (≤ ${LOW_STOCK})` },
+  { value: 'out', label: 'Agotados en tienda' },
+  { value: 'warehouse', label: 'Con stock en depósito' },
+  { value: 'needs_transfer', label: 'Sin tienda, con depósito' },
   { value: 'backorder', label: 'Backorder' },
 ]
 
@@ -190,9 +197,12 @@ const filteredProducts = computed(() => {
     }
     if (statusFilter.value === 'active' && p.is_active === false) return false
     if (statusFilter.value === 'inactive' && p.is_active !== false) return false
+    const warehouse = Number(p.stock_warehouse) || 0
     if (stockFilter.value === 'in_stock' && !(p.stock > 0)) return false
     if (stockFilter.value === 'low' && !(p.stock > 0 && p.stock <= LOW_STOCK)) return false
     if (stockFilter.value === 'out' && !(p.stock === 0 && !p.allow_backorder)) return false
+    if (stockFilter.value === 'warehouse' && !(warehouse > 0)) return false
+    if (stockFilter.value === 'needs_transfer' && !(p.stock === 0 && warehouse > 0)) return false
     if (stockFilter.value === 'backorder' && !p.allow_backorder) return false
     if (storeFilter.value !== 'all' && p.store_id !== storeFilter.value) return false
     return true
@@ -277,12 +287,22 @@ async function toggleActive(id) {
   }
 }
 
+function openTransfer(product) {
+  transferProduct.value = product
+  transferOpen.value = true
+}
+
+async function handleTransferred() {
+  await fetchProducts()
+}
+
 function resetForm() {
   form.value = {
     name: '',
     description: '',
     price: '',
     stock: 0,
+    stock_warehouse: 0,
     allow_backorder: false,
     is_active: true,
     store_id: auth.storeId || stores.value[0]?.id || '',
@@ -323,6 +343,7 @@ async function openEditDialog(product) {
       attrs: Object.entries(v.attributes || {}).map(([k, val]) => ({ k, v: String(val) })),
       price: v.price ?? '',
       stock: v.stock ?? 0,
+      stock_warehouse: v.stock_warehouse ?? 0,
     }))
   }
 
@@ -331,6 +352,7 @@ async function openEditDialog(product) {
     description: product.description || '',
     price: product.price ?? '',
     stock: product.stock ?? 0,
+    stock_warehouse: product.stock_warehouse ?? 0,
     allow_backorder: product.allow_backorder ?? false,
     is_active: product.is_active ?? true,
     store_id: product.store_id || '',
@@ -421,7 +443,13 @@ function cleanVariantRows() {
         if (k && v) attributes[k] = v
       }
       const price = r.price === '' || r.price === null ? null : Number(r.price)
-      return { id: r.id || null, attributes, price, stock: Number(r.stock) || 0 }
+      return {
+        id: r.id || null,
+        attributes,
+        price,
+        stock: Number(r.stock) || 0,
+        stock_warehouse: Number(r.stock_warehouse) || 0,
+      }
     })
     .filter((r) => Object.keys(r.attributes).length > 0)
 }
@@ -463,6 +491,7 @@ async function syncVariants(productId) {
       attributes: d.attributes,
       price: d.price,
       stock: d.stock,
+      stock_warehouse: d.stock_warehouse,
     }
     if (d.id) {
       const { error } = await supabase
@@ -505,6 +534,7 @@ async function handleSave() {
           ),
           price: r.price,
           stock: r.stock,
+          stock_warehouse: r.stock_warehouse,
         }))
         .filter((v) => Object.keys(v.attributes).length > 0)
     )
@@ -537,7 +567,10 @@ async function handleSave() {
       store_id: form.value.store_id,
     }
     // Con variantes el stock lo administra el trigger de sincronización.
-    if (!form.value.use_variants) payload.stock = data.stock
+    if (!form.value.use_variants) {
+      payload.stock = data.stock
+      payload.stock_warehouse = data.stock_warehouse
+    }
 
     if (editingProduct.value) {
       const updates = { ...payload }
@@ -857,7 +890,7 @@ async function confirmDelete() {
                 class="inline-flex items-center gap-1 font-medium text-neutral-500 transition-colors hover:text-neutral-900"
                 @click="setSort('stock')"
               >
-                Stock
+                Tienda / Depósito
                 <ChevronUp v-if="sortKey === 'stock' && sortDir === 'asc'" class="size-3.5" />
                 <ChevronDown v-else-if="sortKey === 'stock' && sortDir === 'desc'" class="size-3.5" />
                 <ChevronsUpDown v-else class="size-3.5 opacity-40" />
@@ -920,9 +953,22 @@ async function confirmDelete() {
               <PriceDisplay :price="product.price" />
             </td>
             <td class="px-4 py-3">
-              <span class="tabular-nums" :class="stockMeta(product).numCls">
-                {{ product.stock }}
-              </span>
+              <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                <span
+                  class="tabular-nums font-medium"
+                  :class="stockMeta(product).numCls"
+                  title="Stock en tienda (vendible en la web)"
+                >
+                  {{ product.stock }}
+                </span>
+                <span class="text-neutral-300">/</span>
+                <span
+                  class="tabular-nums text-neutral-500"
+                  title="Stock en depósito (no disponible en la web)"
+                >
+                  {{ product.stock_warehouse ?? 0 }}
+                </span>
+              </div>
               <span
                 v-if="product.has_variants"
                 class="ml-1.5 rounded-full bg-ucla-50 px-2 py-0.5 text-[10px] font-medium text-ucla-600"
@@ -980,6 +1026,14 @@ async function confirmDelete() {
                 >
                   <ExternalLink class="size-4" />
                 </a>
+                <button
+                  class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ucla-600"
+                  @click="openTransfer(product)"
+                  aria-label="Transferir stock"
+                  title="Transferir stock entre depósito y tienda"
+                >
+                  <ArrowLeftRight class="size-4" />
+                </button>
                 <button
                   class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ucla-600"
                   @click="openEditDialog(product)"
@@ -1065,7 +1119,10 @@ async function confirmDelete() {
                 <PriceDisplay :price="product.price" />
               </span>
               <span class="tabular-nums" :class="stockMeta(product).numCls">
-                Stock: {{ product.stock }}
+                Tienda: {{ product.stock }}
+              </span>
+              <span class="tabular-nums text-neutral-500">
+                Depósito: {{ product.stock_warehouse ?? 0 }}
               </span>
               <span
                 v-if="product.has_variants"
@@ -1103,6 +1160,14 @@ async function confirmDelete() {
               >
                 <ExternalLink class="size-4" />
               </a>
+              <button
+                class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ucla-600"
+                @click="openTransfer(product)"
+                aria-label="Transferir stock"
+                title="Transferir stock entre depósito y tienda"
+              >
+                <ArrowLeftRight class="size-4" />
+              </button>
               <button
                 class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ucla-600"
                 @click="openEditDialog(product)"
@@ -1265,7 +1330,7 @@ async function confirmDelete() {
           </p>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div class="grid gap-2">
             <Label for="prod-price">Precio *</Label>
             <Input
@@ -1281,7 +1346,7 @@ async function confirmDelete() {
             <p v-if="formErrors.price" class="text-xs text-red-500">{{ formErrors.price }}</p>
           </div>
           <div class="grid gap-2">
-            <Label for="prod-stock">Stock</Label>
+            <Label for="prod-stock">Stock en tienda</Label>
             <Input
               id="prod-stock"
               v-model="form.stock"
@@ -1294,7 +1359,27 @@ async function confirmDelete() {
             />
             <p v-if="formErrors.stock" class="text-xs text-red-500">{{ formErrors.stock }}</p>
           </div>
+          <div class="grid gap-2">
+            <Label for="prod-warehouse">En depósito</Label>
+            <Input
+              id="prod-warehouse"
+              v-model="form.stock_warehouse"
+              type="number"
+              min="0"
+              placeholder="0"
+              :disabled="form.use_variants"
+              :title="form.use_variants ? 'El depósito se administra por variante' : ''"
+              :class="formErrors.stock_warehouse ? 'border-red-400 focus-visible:ring-red-500/30' : ''"
+            />
+            <p v-if="formErrors.stock_warehouse" class="text-xs text-red-500">
+              {{ formErrors.stock_warehouse }}
+            </p>
+          </div>
         </div>
+        <p class="text-xs text-neutral-400">
+          Solo el stock en tienda se puede vender en la web. Podés mover unidades entre depósito y
+          tienda con el botón de transferencia.
+        </p>
 
         <div class="rounded-lg border border-neutral-200 p-3">
           <label class="flex items-center gap-2 text-sm">
@@ -1307,8 +1392,8 @@ async function confirmDelete() {
             Producto con variantes (color, talla, etc.)
           </label>
           <p v-if="form.use_variants" class="mt-1 text-xs text-neutral-400">
-            El stock total se calcula sumando las variantes. Cada variante puede tener precio
-            propio (si lo dejás vacío usa el precio base).
+            El stock en tienda y en depósito se administran por variante y se suman en el producto.
+            Cada variante puede tener precio propio (si lo dejás vacío usa el precio base).
           </p>
           <VariantEditor
             v-if="form.use_variants"
@@ -1438,4 +1523,10 @@ async function confirmDelete() {
       </DialogFooter>
     </DialogContent>
   </Dialog>
+
+  <StockTransferDialog
+    v-model:open="transferOpen"
+    :product="transferProduct"
+    @transferred="handleTransferred"
+  />
 </template>

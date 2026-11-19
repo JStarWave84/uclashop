@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Lock,
   ShieldCheck,
+  ArrowLeftRight,
 } from '@lucide/vue'
 import { supabase } from '@/lib/supabaseClient'
 import { optimizeProductImage } from '@/lib/imageOptimize'
@@ -29,6 +30,7 @@ import {
 } from '@/components/ui/dialog'
 import PriceDisplay from '@/components/shared/PriceDisplay.vue'
 import VariantEditor from '@/components/shared/VariantEditor.vue'
+import StockTransferDialog from '@/components/shared/StockTransferDialog.vue'
 import { validateProduct, validateVariants } from '@/schemas/product'
 import { useAuthStore } from '@/stores/auth'
 import { productImageUrl } from '@/lib/storage'
@@ -42,12 +44,15 @@ const dialogOpen = ref(false)
 const saving = ref(false)
 const editingProduct = ref(null)
 const formErrors = ref({})
+const transferOpen = ref(false)
+const transferProduct = ref(null)
 
 const form = ref({
   name: '',
   description: '',
   price: '',
   stock: 0,
+  stock_warehouse: 0,
   allow_backorder: false,
   is_active: true,
   use_variants: false,
@@ -101,8 +106,17 @@ function stockMeta(p) {
   return { badge: null, badgeCls: '', numCls: 'text-neutral-700' }
 }
 
+function openTransfer(product) {
+  transferProduct.value = product
+  transferOpen.value = true
+}
+
+async function handleTransferred() {
+  await fetchProducts()
+}
+
 function resetForm() {
-  form.value = { name: '', description: '', price: '', stock: 0, allow_backorder: false, is_active: true, use_variants: false }
+  form.value = { name: '', description: '', price: '', stock: 0, stock_warehouse: 0, allow_backorder: false, is_active: true, use_variants: false }
   formErrors.value = {}
   variantRows.value = []
   variantErrors.value = {}
@@ -123,6 +137,7 @@ async function openEditDialog(product) {
     description: product.description || '',
     price: product.price ?? '',
     stock: product.stock ?? 0,
+    stock_warehouse: product.stock_warehouse ?? 0,
     allow_backorder: product.allow_backorder ?? false,
     is_active: product.is_active ?? true,
     use_variants: !!product.has_variants,
@@ -201,7 +216,13 @@ function cleanVariantRows() {
         if (k && v) attributes[k] = v
       }
       const price = r.price === '' || r.price === null ? null : Number(r.price)
-      return { id: r.id || null, attributes, price, stock: Number(r.stock) || 0 }
+      return {
+        id: r.id || null,
+        attributes,
+        price,
+        stock: Number(r.stock) || 0,
+        stock_warehouse: Number(r.stock_warehouse) || 0,
+      }
     })
     .filter((r) => Object.keys(r.attributes).length > 0)
 }
@@ -243,6 +264,7 @@ async function syncVariants(productId) {
       attributes: d.attributes,
       price: d.price,
       stock: d.stock,
+      stock_warehouse: d.stock_warehouse,
     }
     if (d.id) {
       const { error } = await supabase
@@ -283,6 +305,7 @@ async function handleSave() {
         ),
         price: r.price,
         stock: r.stock,
+        stock_warehouse: r.stock_warehouse,
       })).filter((v) => Object.keys(v.attributes).length > 0)
     )
     if (!check.valid) {
@@ -314,7 +337,10 @@ async function handleSave() {
       store_id: auth.storeId,
     }
     // Con variantes el stock lo administra el trigger de sincronización.
-    if (!form.value.use_variants) payload.stock = data.stock
+    if (!form.value.use_variants) {
+      payload.stock = data.stock
+      payload.stock_warehouse = data.stock_warehouse
+    }
 
     if (editingProduct.value) {
       const updates = { ...payload }
@@ -494,7 +520,12 @@ async function handleDelete(id) {
             <span class="font-medium text-neutral-700 tabular-nums">
               <PriceDisplay :price="product.price" />
             </span>
-            <span class="tabular-nums" :class="stockMeta(product).numCls">Stock: {{ product.stock }}</span>
+            <span class="tabular-nums" :class="stockMeta(product).numCls">
+              Tienda: {{ product.stock }}
+            </span>
+            <span class="tabular-nums text-neutral-500">
+              Depósito: {{ product.stock_warehouse ?? 0 }}
+            </span>
             <span
               v-if="product.has_variants"
               class="rounded-full bg-ucla-50 px-2 py-0.5 text-[10px] font-medium text-ucla-600"
@@ -524,6 +555,15 @@ async function handleDelete(id) {
           >
             <ExternalLink class="size-4" />
           </a>
+          <button
+            class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ucla-600 disabled:cursor-not-allowed disabled:opacity-40"
+            :disabled="!canManage"
+            @click="openTransfer(product)"
+            aria-label="Transferir stock"
+            title="Transferir stock entre depósito y tienda"
+          >
+            <ArrowLeftRight class="size-4" />
+          </button>
           <button
             class="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ucla-600 disabled:cursor-not-allowed disabled:opacity-40"
             :disabled="!canManage"
@@ -631,7 +671,7 @@ async function handleDelete(id) {
             <p v-if="formErrors.description" class="text-xs text-red-500">{{ formErrors.description }}</p>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div class="grid gap-2">
               <Label for="sp-price">Precio *</Label>
               <Input
@@ -647,7 +687,7 @@ async function handleDelete(id) {
               <p v-if="formErrors.price" class="text-xs text-red-500">{{ formErrors.price }}</p>
             </div>
             <div class="grid gap-2">
-              <Label for="sp-stock">Stock</Label>
+              <Label for="sp-stock">Stock en tienda</Label>
               <Input
                 id="sp-stock"
                 v-model="form.stock"
@@ -660,7 +700,27 @@ async function handleDelete(id) {
               />
               <p v-if="formErrors.stock" class="text-xs text-red-500">{{ formErrors.stock }}</p>
             </div>
+            <div class="grid gap-2">
+              <Label for="sp-warehouse">En depósito</Label>
+              <Input
+                id="sp-warehouse"
+                v-model="form.stock_warehouse"
+                type="number"
+                min="0"
+                placeholder="0"
+                :disabled="form.use_variants"
+                :title="form.use_variants ? 'El depósito se administra por variante' : ''"
+                :class="formErrors.stock_warehouse ? 'border-red-400' : ''"
+              />
+              <p v-if="formErrors.stock_warehouse" class="text-xs text-red-500">
+                {{ formErrors.stock_warehouse }}
+              </p>
+            </div>
           </div>
+          <p class="text-xs text-neutral-400">
+            Solo el stock en tienda se vende en la web. Podés mover unidades con el botón de
+            transferencia.
+          </p>
 
           <div class="rounded-lg border border-neutral-200 p-3">
             <label class="flex items-center gap-2 text-sm">
@@ -673,8 +733,9 @@ async function handleDelete(id) {
               Producto con variantes (color, talla, etc.)
             </label>
             <p v-if="form.use_variants" class="mt-1 text-xs text-neutral-400">
-              El stock total se calcula sumando las variantes. Cada variante puede tener precio
-              propio (si lo dejás vacío usa el precio base).
+              El stock en tienda y en depósito se administran por variante y se suman en el
+              producto. Cada variante puede tener precio propio (si lo dejás vacío usa el precio
+              base).
             </p>
             <VariantEditor
               v-if="form.use_variants"
@@ -711,5 +772,11 @@ async function handleDelete(id) {
         </DialogFooter>
       </DialogScrollContent>
     </Dialog>
+
+    <StockTransferDialog
+      v-model:open="transferOpen"
+      :product="transferProduct"
+      @transferred="handleTransferred"
+    />
   </div>
 </template>

@@ -16,7 +16,7 @@ E-commerce platform for the Universidad Centroccidental Lisandro Alvarado (UCLA)
 
 ### Admin Dashboard
 - **Dashboard** — stats overview (total orders, pending payment, paid, in delivery) and recent orders
-- **Products** — full CRUD with image upload, stock tracking, backorder toggle, active/inactive status, and per-product WhatsApp contact number
+- **Products** — full CRUD with image upload, separate **in-store / warehouse stock** (only in-store stock is sellable online; stock can be transferred between both, per variant), backorder toggle, active/inactive status, and per-product WhatsApp contact number
 - **Sales Sessions** — create and manage *jornadas* with product assignment
 - **Orders** — list with search and status filtering; detail view with line items, receipt viewer, and status management
 - **Deliveries** — list view (read-only) for tracking delivery status
