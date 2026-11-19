@@ -80,9 +80,13 @@ const routes = [
         component: () => import('@/views/dashboard/OrdersList.vue'),
       },
       {
+        // Legacy deep links now open the detail modal on the list view.
         path: 'ordenes/:id',
         name: 'admin-order-detail',
-        component: () => import('@/views/dashboard/OrderDetail.vue'),
+        redirect: (to) => ({
+          name: 'admin-orders',
+          query: { ...to.query, orden: to.params.id },
+        }),
       },
       {
         path: 'cuentas-pago',

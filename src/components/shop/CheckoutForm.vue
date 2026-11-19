@@ -2,9 +2,13 @@
 import { ref, reactive } from 'vue'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, Trash2, ImageUp } from '@lucide/vue'
+import { ChevronRight, Trash2, ImageUp, Loader2 } from '@lucide/vue'
 import { validateCheckout } from '@/schemas/checkout'
 import { formatVePhone } from '@/lib/utils'
+
+const props = defineProps({
+  busy: { type: Boolean, default: false },
+})
 
 const emit = defineEmits(['submit'])
 
@@ -79,6 +83,9 @@ function formatPaymentRef(e) {
 }
 
 function handleSubmit() {
+  // Ignore repeated submits (double click / Enter while the order is saved).
+  if (props.busy) return
+
   for (const key of Object.keys(formErrors)) formErrors[key] = ''
 
   const { valid, errors, data } = validateCheckout(form)
@@ -261,9 +268,10 @@ function handleSubmit() {
     </fieldset>
 
     <div class="mt-8">
-      <Button type="submit" size="lg" class="w-full sm:w-auto">
-        Crear pedido
-        <ChevronRight class="size-4" />
+      <Button type="submit" size="lg" class="w-full sm:w-auto" :disabled="busy">
+        <Loader2 v-if="busy" class="size-4 animate-spin" />
+        {{ busy ? 'Creando pedido...' : 'Crear pedido' }}
+        <ChevronRight v-if="!busy" class="size-4" />
       </Button>
       <p class="mt-2 text-xs text-ucla-900/40">
         * Al crear el pedido se te mostrará un botón para notificarnos al WhatsApp.

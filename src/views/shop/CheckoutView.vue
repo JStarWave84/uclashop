@@ -17,6 +17,7 @@ const cart = useCartStore()
 const { rate: exchangeRate, loading: rateLoading } = useExchangeRate()
 
 const paymentAccounts = ref([])
+const submitting = ref(false)
 
 onMounted(async () => {
   const { data } = await supabase
@@ -28,6 +29,13 @@ onMounted(async () => {
 })
 
 async function placeOrder(data) {
+  // Hard guard: a second submit must never create a second order.
+  if (submitting.value) return
+  if (!cart.items.length) {
+    toast.error('Tu carrito está vacío')
+    return
+  }
+
   const items = cart.items.map((i) => ({
     product_id: i.id,
     variant_id: i.variant_id || null,
@@ -36,6 +44,10 @@ async function placeOrder(data) {
     price_snapshot: i.price,
   }))
   const total = cart.totalPrice
+  const receiptFile = data.receipt_file
+
+  submitting.value = true
+  let orderId = null
 
   try {
     const { data: result, error: rpcErr } = await supabase.rpc('place_order', {
@@ -49,39 +61,52 @@ async function placeOrder(data) {
       p_items: items,
     })
 
-    if (rpcErr) {
+    if (rpcErr || !result?.id) {
       console.error('placeOrder', rpcErr)
       toast.error('No se pudo crear la orden')
       return
     }
 
-    const orderId = result.id
+    orderId = result.id
 
-    if (data.receipt_file) {
-      const file = await optimizeReceiptImage(data.receipt_file)
-      const ext = file.name.split('.').pop()
-      const path = `${orderId}/${Date.now()}.${ext}`
-      const { error: uploadErr } = await supabase.storage
-        .from('receipts')
-        .upload(path, file, { upsert: true })
-      if (uploadErr) {
-        console.error('uploadReceipt', uploadErr)
-        toast.error('La orden se creó, pero no se pudo subir el comprobante')
-      } else {
+    // The order already exists in the database: clear the cart right away so
+    // a reload or a retry can never submit the same purchase again.
+    cart.clearCart()
+
+    if (receiptFile) {
+      // Receipt failures must NOT look like an order-creation failure, or the
+      // customer retries and duplicates the order.
+      try {
+        const file = await optimizeReceiptImage(receiptFile)
+        const ext = (file.name.split('.').pop() || 'webp').toLowerCase()
+        const path = `${orderId}/${Date.now()}.${ext}`
+        const { error: uploadErr } = await supabase.storage
+          .from('receipts')
+          .upload(path, file, { upsert: true })
+        if (uploadErr) throw uploadErr
+
         const { error: linkErr } = await supabase.rpc('set_order_receipt_url', {
           p_order_id: orderId,
           p_receipt_url: path,
         })
-        if (linkErr) console.error('setOrderReceiptUrl', linkErr)
+        if (linkErr) throw linkErr
+      } catch (receiptError) {
+        console.error('receiptUpload', receiptError)
+        toast.warning('La orden se creó, pero el comprobante no se pudo subir.')
       }
     }
 
     toast.success('Orden creada correctamente')
-    cart.clearCart()
-    router.push(`/orden/${orderId}/confirmacion`)
+    await router.push(`/orden/${orderId}/confirmacion`)
   } catch (e) {
     console.error(e)
-    toast.error('Error creando la orden')
+    if (orderId) {
+      toast.warning('La orden se creó, pero ocurrió un problema al finalizar.')
+    } else {
+      toast.error('No se pudo crear la orden. Revisa tu conexión e inténtalo de nuevo.')
+    }
+  } finally {
+    submitting.value = false
   }
 }
 </script>
@@ -113,7 +138,7 @@ async function placeOrder(data) {
 
     <div v-else class="mt-8 grid gap-8 lg:grid-cols-5 lg:gap-12">
       <div class="lg:col-span-3">
-        <CheckoutForm @submit="placeOrder" />
+        <CheckoutForm :busy="submitting" @submit="placeOrder" />
       </div>
 
       <aside class="flex flex-col gap-6 lg:col-span-2">
